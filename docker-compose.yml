@@ -1,0 +1,46 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: api-scan-postgres
+    environment:
+      POSTGRES_USER: api_scan
+      POSTGRES_PASSWORD: api_scan_secret
+      POSTGRES_DB: api_scan
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U api_scan -d api_scan"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: api-scan-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Мок OCR-провайдера для локальной разработки
+  ocr-mock:
+    image: wiremock/wiremock:3.3.1
+    container_name: api-scan-ocr-mock
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./tests/mocks/ocr:/home/wiremock
+    command: ["--global-stubbing", "--verbose"]
+
+volumes:
+  postgres_data:
+  redis_data:
