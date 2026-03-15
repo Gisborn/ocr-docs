@@ -53,7 +53,7 @@ CREATE TABLE tariffs (
 CREATE TABLE tariff_price_plans (
     id SERIAL PRIMARY KEY,
     tariff_id SMALLINT NOT NULL REFERENCES tariffs(id),
-    operation_type VARCHAR(50) NOT NULL DEFAULT 'passport_recognition',
+    document_type VARCHAR(50) NOT NULL DEFAULT 'passport_rf',  -- passport_rf, snils, inn, drivers_license и др.
     prepaid_qty INT DEFAULT 0,
     prepaid_price_rub NUMERIC(10, 2),
     on_demand_price_rub NUMERIC(10, 2) NOT NULL,
