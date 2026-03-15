@@ -1,13 +1,63 @@
 # api-scan Makefile
 
-.PHONY: help build test lint migrate-up migrate-down docker-up docker-down
+.PHONY: help build test lint migrate-up migrate-down
+
+# Переменные для БД
+DB_HOST ?= localhost
+DB_PORT ?= 5432
+DB_USER ?= api_scan
+DB_PASSWORD ?= api_scan_secret
+DB_NAME ?= api_scan
+DATABASE_URL ?= postgres://$(DB_USER):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/$(DB_NAME)?sslmode=disable
 
 # Default target
 help: ## Показать справку
 	@echo "Доступные команды:"
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}'
 
-# Build
+# === Development ===
+
+dev-up: ## Запустить локальные зависимости (PostgreSQL, Redis)
+	docker compose up -d
+	@echo "Ожидание запуска PostgreSQL..."
+	@sleep 5
+	@echo "Проверка подключения..."
+	@make db-check
+
+dev-down: ## Остановить локальные зависимости
+	docker compose down
+
+dev-logs: ## Показать логи контейнеров
+	docker compose logs -f
+
+dev-clean: ## Очистить данные БД и volumes
+	docker compose down -v
+	rm -rf postgres_data/
+
+# === Database ===
+
+db-check: ## Проверить подключение к PostgreSQL
+	@./scripts/test-db.sh
+
+migrate-up: ## Применить все миграции
+	@echo "Применение миграций..."
+	@cd migrations && goose postgres "$(DATABASE_URL)" up
+
+migrate-down: ## Откатить последнюю миграцию
+	@cd migrations && goose postgres "$(DATABASE_URL)" down
+
+migrate-status: ## Статус миграций
+	@cd migrations && goose postgres "$(DATABASE_URL)" status
+
+migrate-reset: ## Откатить все миграции и применить заново
+	@cd migrations && goose postgres "$(DATABASE_URL)" reset
+	@cd migrations && goose postgres "$(DATABASE_URL)" up
+
+migrate-create: ## Создать новую миграцию (make migrate-create name=add_users_table)
+	@cd migrations && goose create $(name) sql
+
+# === Build ===
+
 build: ## Собрать все сервисы
 	@echo "Сборка orchestrator..."
 	@docker build -t api-scan/orchestrator:latest ./services/orchestrator
@@ -17,57 +67,27 @@ build: ## Собрать все сервисы
 	@docker build -t api-scan/cabinet-backend:latest ./services/cabinet/backend
 	@echo "Сборка завершена"
 
-# Testing
-test: ## Запустить все тесты
-	@go test ./pkg/... ./services/... -v
+# === Testing ===
 
-test-integration: ## Запустить интеграционные тесты
+test: ## Запустить все тесты
+	@go test ./pkg/... -v
+
+test-integration: ## Запустить интеграционные тесты (требуется БД)
 	@go test ./tests/integration/... -v
 
 test-e2e: ## Запустить e2e тесты
 	@go test ./tests/e2e/... -v
 
-# Linting
+# === Linting ===
+
 lint: ## Запустить линтер
 	@golangci-lint run ./...
 
 fmt: ## Форматировать код
 	@go fmt ./...
 
-# Database migrations
-migrate-up: ## Применить миграции
-	@cd migrations && goose up
+# === Terraform ===
 
-migrate-down: ## Откатить последнюю миграцию
-	@cd migrations && goose down
-
-migrate-status: ## Статус миграций
-	@cd migrations && goose status
-
-migrate-create: ## Создать новую миграцию (использование: make migrate-create name=add_users_table)
-	@cd migrations && goose create $(name) sql
-
-# Docker Compose (local development)
-docker-up: ## Запустить локальные зависимости (PostgreSQL, Redis)
-	@docker-compose up -d
-
-docker-down: ## Остановить локальные зависимости
-	@docker-compose down
-
-docker-logs: ## Показать логи контейнеров
-	@docker-compose logs -f
-
-# Development
-dev-orchestrator: ## Запустить orchestrator локально
-	@cd services/orchestrator && go run ./cmd/server
-
-dev-billing: ## Запустить billing локально
-	@cd services/billing && go run ./cmd/server
-
-dev-cabinet: ## Запустить cabinet backend локально
-	@cd services/cabinet/backend && go run ./cmd/server
-
-# Terraform
 terraform-init: ## Инициализировать Terraform
 	@cd infra/terraform && terraform init
 
@@ -77,13 +97,14 @@ terraform-plan: ## План изменений инфраструктуры
 terraform-apply: ## Применить изменения инфраструктуры
 	@cd infra/terraform && terraform apply
 
-# CI/CD
+# === CI/CD ===
+
 ci-test: ## Команда для CI (тесты + линтер)
 	@make lint
 	@make test
 
-# Clean
+# === Clean ===
+
 clean: ## Очистить артефакты сборки
 	@rm -rf bin/ dist/
-	@docker-compose down -v
 	@docker system prune -f
