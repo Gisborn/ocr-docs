@@ -1,8 +1,8 @@
 # api-scan: План реализации MVP
 
-> Версия: 1.0  
-> Статус: черновик  
-> Дата: 2025
+> Версия: 1.1  
+> Статус: актуальный  
+> Дата: 2026-03-17
 
 Задачи сгруппированы по этапам. Каждый этап — завершённый рабочий срез, который можно тестировать независимо. Задачи внутри этапа выполняются последовательно, если не указано иное.
 
@@ -100,54 +100,77 @@ api-scan/
 
 ---
 
-## Этап 1. Базы данных и схемы
+## Этап 1. Базы данных и инфраструктура
 
-Две независимые БД: `api_scan_main` (организации, ключи, события) и `billing_db` (счета, подписки, биллинг). Billing Service полностью автономен.
+Две независимые БД + Redis. Billing Service полностью автономен.
 
 ---
 
-### 1-1. Развернуть Managed PostgreSQL
+### 1-1. Развернуть Managed PostgreSQL и Redis
 
 **Что сделать:**
-Создать два инстанса Yandex Managed PostgreSQL в каталогах `staging` и `production`:
-- `api-scan-main-db` для основных сервисов
-- `billing-db` для Billing Service (изолированная)
-
-Настроить резервное копирование, мониторинг, сетевой доступ только из внутренней сети.
+Создать в Yandex Cloud (staging и production):
+- **PostgreSQL `api-scan-main-db`**: организации, пользователи, API-ключи
+- **PostgreSQL `billing-db`**: счета, подписки, биллинг (изолированная)  
+- **Yandex Memory Store (Redis)**: кэш API-ключей, idempotency, rate limiting
 
 **Критерии выполнения:**
 - Две БД доступны из внутренней сети, недоступны из интернета.
-- Автоматические бэкапы: 7 дней (staging), 30 дней (production).
-- Тестовое подключение из staging-окружения успешно.
+- Redis доступен из внутренней сети.
+- Автоматические бэкапы БД: 7 дней (staging), 30 дней (production).
+- Тестовое подключение к БД и Redis из staging-окружения успешно.
 
 ---
 
 ### 1-2. Миграции api_scan_main
 
 **Что сделать:**
-Написать миграции для `migrations/main/`: `organizations`, `users`, `api_keys`, `account_events`.
+Написать миграции для `migrations/main/`:
 
-Инструмент: **goose**
+**Таблицы:**
+- `organizations` — организации (`id`, `name`, `billing_account_id`, `created_at`)
+- `users` — пользователи ЛК (`id`, `org_id`, `email`, `password_hash`, `role`)
+- `api_keys` — API-ключи (`id`, `org_id`, `name`, `key_hash`, `created_at`, `last_used_at`, `revoked_at`)
+- `account_events` — история событий (`id`, `org_id`, `event_type`, `payload`, `created_at`, `actor_id`)
+
+**Связь с Billing:**
+- `organizations.billing_account_id` — внешний ключ на `billing_db.accounts.id` (логический, не FK в БД)
 
 **Критерии выполнения:**
 - Миграции применяются `goose up` без ошибок.
 - Откат (`goose down`) работает.
-- Advisory lock предотвращает дублирование при одновременном деплое.
+- Advisory lock предотвращает дублирование.
 
 ---
 
 ### 1-3. Миграции billing_db
 
 **Что сделать:**
-Написать миграции для `migrations/billing/` по схеме из `billing-architecture.md`:
-- Таблицы: `accounts`, `services`, `tariffs`, `tariff_versions`, `tariff_service_prices`, `subscriptions`, `billing_events`, `balance_snapshots`, `reservations`, `subscription_changes`
-- ENUM типы, индексы, триггеры
-- Начальные данные: `services` ('passport_rf'), `tariffs` (free, basic, pro) с версиями
+Написать миграции для `migrations/billing/`:
+
+**Основные таблицы:**
+- `accounts` — счета клиентов (`id`, `status`, `created_at`)
+- `services` — типы операций (`id`, `name`, `status`)
+- `tariffs` / `tariff_versions` / `tariff_service_prices` — тарифы и цены
+- `subscriptions` — подписки (`id`, `account_id`, `tariff_version_id`, `status`, `started_at`, `expires_at`)
+- `billing_events` — event sourcing (`id`, `account_id`, `type`, `real_amount_rub`, `prepaid_amount_rub`, `request_id`, `created_at`)
+- `balance_snapshots` — снапшоты балансов (`account_id`, `real_balance_rub`, `prepaid_balance_rub`, `updated_at`)
+- `reservations` — активные резервы (`id`, `account_id`, `request_id`, `amount_rub`, `charge_type`, `expires_at`)
+- `subscription_changes` — история изменений подписок
+- `payment_orders` — заказы на оплату (ЮКасса) (`id`, `account_id`, `amount_rub`, `status`, `yookassa_payment_id`, `created_at`)
+
+**ENUM типы:** `billing_event_type`, `subscription_status`
+
+**Начальные данные:**
+- `services`: ('passport_rf', 'Паспорт РФ')
+- `tariffs`: free (0₽), basic (pay-as-you-go), pro (prepaid) с версиями
 
 **Критерии выполнения:**
 - Миграции применяются `goose up` без ошибок.
-- Схема соответствует `billing-architecture.md`.
-- Тестовые данные для базовых тарифов созданы.
+- Все ENUM типы созданы.
+- Индексы на внешние ключи и часто используемые поля.
+- Триггеры для `updated_at` (где применимо).
+- Тестовые данные для тарифов созданы.
 
 ---
 
