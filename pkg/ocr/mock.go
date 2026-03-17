@@ -2,145 +2,68 @@ package ocr
 
 import (
 	"context"
-	"fmt"
+	"math/rand"
 )
 
-// Mock провайдер для тестирования
-type Mock struct {
-	name        string
-	fixedResult *Result
-	fixedError  error
+// MockProvider мок OCR провайдер для тестирования
+type MockProvider struct {
+	name      string
+	failRate  float64 // Вероятность ошибки (0-1)
+	minConf   float64 // Минимальный confidence
+	maxConf   float64 // Максимальный confidence
 }
 
-// NewMock создает мок-провайдер с фиксированным результатом
-func NewMock(name string, result *Result) *Mock {
-	return &Mock{
-		name:        name,
-		fixedResult: result,
+// NewMockProvider создает мок провайдер
+func NewMockProvider() *MockProvider {
+	return &MockProvider{
+		name:     "mock",
+		failRate: 0,
+		minConf:  0.90,
+		maxConf:  0.99,
 	}
 }
 
-// NewMockError создает мок-провайдер, который всегда возвращает ошибку
-func NewMockError(name string, err error) *Mock {
-	return &Mock{
-		name:       name,
-		fixedError: err,
+// NewMockProviderWithFailure создает мок с заданной вероятностью ошибок
+func NewMockProviderWithFailure(name string, failRate float64) *MockProvider {
+	return &MockProvider{
+		name:     name,
+		failRate: failRate,
+		minConf:  0.90,
+		maxConf:  0.99,
 	}
 }
 
-func (m *Mock) Name() string {
+func (m *MockProvider) Name() string {
 	return m.name
 }
 
-func (m *Mock) Recognize(ctx context.Context, image []byte) (*Result, error) {
-	if m.fixedError != nil {
-		return nil, m.fixedError
+// Recognize возвращает мок-результат
+func (m *MockProvider) Recognize(ctx context.Context, image []byte) (*Result, error) {
+	// Симулируем ошибку
+	if rand.Float64() < m.failRate {
+		return nil, &ProviderError{
+			Provider: m.name,
+			Type:     ErrorTypeAPI,
+			Message:  "mock failure",
+		}
 	}
-	
-	if m.fixedResult != nil {
-		// Возвращаем копию, чтобы не менять оригинал
-		result := *m.fixedResult
-		return &result, nil
-	}
-	
-	// Дефолтный результат для паспорта РФ
+
+	// Генерируем случайный confidence
+	confidence := m.minConf + rand.Float64()*(m.maxConf-m.minConf)
+
 	return &Result{
+		RawText:      "МОК ПАСПОРТ\nИВАНОВ ИВАН ИВАНОВИЧ\n01.01.1990\n4515 123456\n15.05.2015\nОТДЕЛОМ УФМС РОССИИ\n770-064",
 		DocumentType: "passport_rf",
-		RawText:      "ПАСПОРТ РОССИЙСКОЙ ФЕДЕРАЦИИ\nИВАНОВ ИВАН ИВАНОВИЧ\n...",
 		Fields: map[string]Field{
-			"last_name":       {Value: "Иванов", Confidence: 0.99},
-			"first_name":      {Value: "Иван", Confidence: 0.98},
-			"middle_name":     {Value: "Иванович", Confidence: 0.97},
-			"birth_date":      {Value: "01.01.1990", Confidence: 0.96},
-			"series":          {Value: "4510", Confidence: 0.95},
-			"number":          {Value: "123456", Confidence: 0.95},
-			"issue_date":      {Value: "15.05.2015", Confidence: 0.98},
-			"issued_by":       {Value: "Отделом УФМС России по г. Москве", Confidence: 0.97},
-			"division_code":   {Value: "770-064", Confidence: 0.96},
+			"last_name":     {Value: "ИВАНОВ", Confidence: confidence},
+			"first_name":    {Value: "ИВАН", Confidence: confidence},
+			"middle_name":   {Value: "ИВАНОВИЧ", Confidence: confidence},
+			"birth_date":    {Value: "01.01.1990", Confidence: confidence},
+			"series":        {Value: "4515", Confidence: confidence},
+			"number":        {Value: "123456", Confidence: confidence},
+			"issue_date":    {Value: "15.05.2015", Confidence: confidence},
+			"issued_by":     {Value: "ОТДЕЛОМ УФМС РОССИИ", Confidence: confidence},
+			"division_code": {Value: "770-064", Confidence: confidence},
 		},
 	}, nil
-}
-
-// MockWithDelay мок с задержкой (для тестирования таймаутов)
-type MockWithDelay struct {
-	*Mock
-	delayMs int
-}
-
-func NewMockWithDelay(name string, delayMs int, result *Result) *MockWithDelay {
-	return &MockWithDelay{
-		Mock:    NewMock(name, result),
-		delayMs: delayMs,
-	}
-}
-
-func (m *MockWithDelay) Recognize(ctx context.Context, image []byte) (*Result, error) {
-	select {
-	case <-ctx.Done():
-		return nil, ctx.Err()
-	default:
-	}
-	
-	// В реальном коде здесь была бы задержка
-	// time.Sleep(time.Duration(m.delayMs) * time.Millisecond)
-	
-	return m.Mock.Recognize(ctx, image)
-}
-
-// ConfigurableMock мок с настраиваемым поведением
-type ConfigurableMock struct {
-	name           string
-	callCount      int
-	results        []Result
-	errors         []error
-	currentIndex   int
-}
-
-func NewConfigurableMock(name string) *ConfigurableMock {
-	return &ConfigurableMock{
-		name:     name,
-		results:  make([]Result, 0),
-		errors:   make([]error, 0),
-	}
-}
-
-func (m *ConfigurableMock) AddResult(result Result) {
-	m.results = append(m.results, result)
-}
-
-func (m *ConfigurableMock) AddError(err error) {
-	m.errors = append(m.errors, err)
-}
-
-func (m *ConfigurableMock) Name() string {
-	return m.name
-}
-
-func (m *ConfigurableMock) Recognize(ctx context.Context, image []byte) (*Result, error) {
-	m.callCount++
-	
-	idx := m.currentIndex
-	if idx >= len(m.results)+len(m.errors) {
-		// Если вышли за пределы настроенных результатов, возвращаем дефолт
-		return NewMock("default", nil).Recognize(ctx, image)
-	}
-	
-	m.currentIndex++
-	
-	// Чередуем результаты и ошибки
-	if idx < len(m.results) {
-		result := m.results[idx]
-		return &result, nil
-	}
-	
-	errIdx := idx - len(m.results)
-	if errIdx < len(m.errors) {
-		return nil, m.errors[errIdx]
-	}
-	
-	return nil, fmt.Errorf("unexpected call")
-}
-
-func (m *ConfigurableMock) CallCount() int {
-	return m.callCount
 }

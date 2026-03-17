@@ -2,9 +2,7 @@ package main
 
 import (
 	"context"
-	"errors"
-	"fmt"
-	"log/slog"
+	"log"
 	"net/http"
 	"os"
 	"os/signal"
@@ -12,119 +10,99 @@ import (
 	"time"
 
 	"github.com/api-scan/api-scan/pkg/ocr"
-	"github.com/api-scan/api-scan/services/orchestrator/internal/config"
 	"github.com/api-scan/api-scan/services/orchestrator/internal/handler"
 	"github.com/api-scan/api-scan/services/orchestrator/internal/service"
 )
 
 func main() {
-	// Настраиваем логирование
-	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, nil)))
+	// Читаем конфигурацию из env
+	port := getEnv("PORT", "8080")
 	
-	// Загружаем конфигурацию
-	cfg := config.Load()
+	// OCR провайдеры
+	yandexAPIKey := getEnv("YANDEX_VISION_API_KEY", "")
+	yandexFolderID := getEnv("YANDEX_FOLDER_ID", "")
+	vkAPIKey := getEnv("VK_VISION_API_KEY", "")
+	vkFolderID := getEnv("VK_FOLDER_ID", "")
 	
-	slog.Info("starting orchestrator service",
-		"port", cfg.Port,
-		"primary_provider", cfg.OCRPrimaryProvider,
-		"fallback_provider", cfg.OCRFallbackProvider,
-	)
+	// Billing Service
+	billingURL := getEnv("BILLING_API_URL", "http://billing:8080")
+	billingToken := getEnv("BILLING_SERVICE_TOKEN", "")
 	
+	// Порог confidence (по умолчанию 0.80)
+	confidenceThreshold := 0.80
+
 	// Создаем OCR провайдеры
-	var primaryProvider, fallbackProvider ocr.Provider
+	var primary, fallback ocr.Provider
 	
-	switch cfg.OCRPrimaryProvider {
-	case "yandex":
-		if cfg.YandexVisionAPIKey == "" {
-			slog.Warn("YANDEX_VISION_API_KEY not set, using mock provider")
-			primaryProvider = ocr.NewMock("yandex-mock", nil)
-		} else {
-			primaryProvider = ocr.NewYandexVision(cfg.YandexVisionAPIKey, cfg.YandexVisionFolderID)
-		}
-	case "vk":
-		if cfg.VKVisionAPIKey == "" {
-			slog.Warn("VK_VISION_API_KEY not set, using mock provider")
-			primaryProvider = ocr.NewMock("vk-mock", nil)
-		} else {
-			primaryProvider = ocr.NewVKVision(cfg.VKVisionAPIKey)
-		}
-	case "mock":
-		primaryProvider = ocr.NewMock("mock", nil)
-	default:
-		slog.Error("unknown primary provider", "provider", cfg.OCRPrimaryProvider)
-		os.Exit(1)
+	if yandexAPIKey != "" && yandexFolderID != "" {
+		primary = ocr.NewYandexVision(yandexAPIKey, yandexFolderID)
+		log.Println("Using Yandex Vision as primary OCR provider")
+	} else {
+		log.Println("WARNING: Yandex Vision not configured, using mock")
+		primary = ocr.NewMockProvider()
 	}
-	
-	switch cfg.OCRFallbackProvider {
-	case "yandex":
-		if cfg.YandexVisionAPIKey == "" {
-			fallbackProvider = ocr.NewMock("yandex-mock", nil)
-		} else {
-			fallbackProvider = ocr.NewYandexVision(cfg.YandexVisionAPIKey, cfg.YandexVisionFolderID)
-		}
-	case "vk":
-		if cfg.VKVisionAPIKey == "" {
-			fallbackProvider = ocr.NewMock("vk-mock", nil)
-		} else {
-			fallbackProvider = ocr.NewVKVision(cfg.VKVisionAPIKey)
-		}
-	case "mock":
-		fallbackProvider = ocr.NewMock("mock", nil)
-	default:
-		fallbackProvider = ocr.NewMock("fallback-mock", nil)
+
+	if vkAPIKey != "" && vkFolderID != "" {
+		fallback = ocr.NewVKVision(vkAPIKey, vkFolderID)
+		log.Println("Using VK Vision as fallback OCR provider")
+	} else {
+		log.Println("WARNING: VK Vision not configured, using mock")
+		fallback = ocr.NewMockProvider()
 	}
-	
-	// Создаем оркестратор
-	orchestrator := service.NewOrchestrator(
-		primaryProvider,
-		fallbackProvider,
-		cfg.CBFailureThreshold,
-		int(cfg.CBTimeout.Seconds()),
-		cfg.OCRConfidenceThreshold,
+
+	// Создаем Billing клиент
+	billingClient := service.NewBillingClient(billingURL, billingToken)
+
+	// Создаем Orchestrator
+	orchestrator := service.NewFullOrchestrator(
+		billingClient,
+		primary,
+		fallback,
+		confidenceThreshold,
 	)
-	
-	// Создаем handler
-	h := handler.New(orchestrator)
-	
-	// Настраиваем mux
+
+	// Создаем HTTP handler
+	httpHandler := handler.NewHandler(orchestrator)
+
+	// Настраиваем HTTP сервер
 	mux := http.NewServeMux()
-	mux.HandleFunc("/v1/recognize", h.RecognizeHandler)
-	mux.HandleFunc("/health", h.HealthHandler)
-	mux.HandleFunc("/stats", h.StatsHandler)
-	
-	// Создаем сервер
+	mux.HandleFunc("/health", httpHandler.Health)
+	mux.HandleFunc("/v1/recognize", httpHandler.Recognize)
+	mux.HandleFunc("/stats", httpHandler.Stats)
+
 	server := &http.Server{
-		Addr:         ":" + cfg.Port,
+		Addr:         ":" + port,
 		Handler:      mux,
-		ReadTimeout:  cfg.ReadTimeout,
-		WriteTimeout: cfg.WriteTimeout,
+		ReadTimeout:  15 * time.Second,
+		WriteTimeout: 30 * time.Second,
+		IdleTimeout:  60 * time.Second,
 	}
-	
+
 	// Graceful shutdown
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-	
-	// Запускаем сервер в горутине
 	go func() {
-		slog.Info("server started", "addr", server.Addr)
-		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			slog.Error("server error", "error", err)
-			os.Exit(1)
+		sigChan := make(chan os.Signal, 1)
+		signal.Notify(sigChan, syscall.SIGTERM, syscall.SIGINT)
+		<-sigChan
+
+		log.Println("Shutting down gracefully...")
+		
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		
+		if err := server.Shutdown(ctx); err != nil {
+			log.Printf("Shutdown error: %v", err)
 		}
 	}()
-	
-	// Ждем сигнала завершения
-	<-quit
-	slog.Info("shutting down server...")
-	
-	// Graceful shutdown с таймаутом
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-	
-	if err := server.Shutdown(ctx); err != nil {
-		slog.Error("server shutdown error", "error", err)
-		os.Exit(1)
+
+	log.Printf("Starting orchestrator server on port %s", port)
+	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		log.Fatalf("Server error: %v", err)
 	}
-	
-	slog.Info("server stopped")
+}
+
+func getEnv(key, defaultValue string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return defaultValue
 }

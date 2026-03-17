@@ -1,9 +1,3 @@
 module github.com/api-scan/api-scan
 
 go 1.22
-
-require (
-	github.com/jackc/pgx/v5 v5.5.5
-	github.com/redis/go-redis/v9 v9.5.1
-	github.com/pressly/goose/v3 v3.19.2
-)
