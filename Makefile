@@ -17,10 +17,12 @@ help: ## Показать справку
 
 # === Development ===
 
-dev-up: ## Запустить локальные зависимости (PostgreSQL, Redis)
+dev-up: ## Запустить локальные зависимости (PostgreSQL, Redis) и применить миграции
 	docker compose up -d
 	@echo "Ожидание запуска PostgreSQL..."
-	@sleep 5
+	@sleep 3
+	@echo "Применение миграций..."
+	@make migrate-up
 	@echo "Проверка подключения..."
 	@make db-check
 

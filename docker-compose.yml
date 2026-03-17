@@ -1,6 +1,5 @@
-version: '3.8'
-
 services:
+  # Main API Database (api_scan_main)
   postgres:
     image: postgres:16-alpine
     container_name: api-scan-postgres
@@ -12,9 +11,31 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - ./migrations/main:/docker-entrypoint-initdb.d
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U api_scan -d api_scan"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - api-scan-network
+
+  # Billing Database (billing_db)
+  postgres-billing:
+    image: postgres:16-alpine
+    container_name: api-scan-postgres-billing
+    environment:
+      POSTGRES_USER: billing
+      POSTGRES_PASSWORD: billing_secret
+      POSTGRES_DB: billing_db
+    ports:
+      - "5433:5432"
+    volumes:
+      - billing_data:/var/lib/postgresql/data
+      - ./migrations/billing:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U billing -d billing_db"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -54,6 +75,8 @@ services:
 
 volumes:
   postgres_data:
+    driver: local
+  billing_data:
     driver: local
   redis_data:
     driver: local
