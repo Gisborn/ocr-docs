@@ -223,6 +223,8 @@ api-scan/
 
 ### 2-4. Реализовать Core Orchestrator
 
+**Зависимость:** Требует задачи **3-2** (Reserve/Commit/Rollback в Billing Service). Можно разрабатывать параллельно, используя мок Billing для задач 2-1..2-3.
+
 **Что сделать:**
 Написать основной сервис, который объединяет OCR и нормализатор в единый флоу. Интеграция с Billing Service: Reserve → OCR → Commit/Rollback.
 
@@ -236,6 +238,8 @@ api-scan/
 - При `5xx`, таймауте или confidence < порога от Yandex Vision — fallback VK Vision.
 - Circuit Breaker: 5 ошибок за 60 сек → исключение провайдера на 30 сек.
 - PDF конвертируется через `pdftoppm` в sandbox.
+- **Секреты:** Токены Yandex/VK Vision хранятся в Yandex Lockbox, монтируются через env. Не в коде, не в Docker-образе.
+- **Graceful Shutdown:** При SIGTERM — завершить текущий OCR-запрос, закрыть соединения, только затем выйти.
 - Интеграция с Billing Service через HTTP (service token):
   - Reserve перед OCR
   - Commit при успехе
@@ -327,7 +331,8 @@ api-scan/
 
 **Критерии выполнения:**
 - Все задачи выполняются без ошибок.
-- При пересчёте балансов advisory lock предотвращает одновременный запуск.
+- **Advisory lock:** Перед запуском каждого job — `SELECT pg_try_advisory_lock('job_name')`. Если lock не получен — job пропускается (другой инстанс уже выполняет).
+- При пересчёте балансов используется `pg_advisory_xact_lock` — lock автоматически снимается при COMMIT/ROLLBACK.
 - Подписки корректно переходят по статусам, остатки prepaid сгорают при expired.
 
 ---
@@ -344,7 +349,7 @@ api-scan/
 **Критерии выполнения:**
 - Запрос без заголовка `X-Api-Key` возвращает `401 Unauthorized`.
 - Запрос с невалидным ключом возвращает `401 Unauthorized`.
-- Запрос с валидным ключом получает `org_id` и `billing_account_id` (из Cabinet).
+- Запрос с валидным ключом: ключ проверяется по хэшу в БД, результат `api_key_hash → (org_id, billing_account_id)` кэшируется в Redis (TTL 5 мин).
 - Rate-limiting: более 30 запросов в секунду возвращают `429`.
 - При недоступности Redis — `503 Service Unavailable`.
 
