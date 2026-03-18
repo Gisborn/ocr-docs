@@ -1,0 +1,278 @@
+basePath: /
+definitions:
+  service.APIKeyInfo:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: integer
+      last_used_at:
+        type: string
+      name:
+        type: string
+      preview:
+        description: последние 4 символа
+        type: string
+      rate_limit_rps:
+        type: integer
+      status:
+        type: string
+    type: object
+  service.CreateAPIKeyRequest:
+    properties:
+      name:
+        type: string
+    type: object
+  service.CreateAPIKeyResponse:
+    properties:
+      created_at:
+        type: string
+      full_key:
+        description: Показывается только один раз!
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+      rate_limit_rps:
+        type: integer
+    type: object
+  service.LoginRequest:
+    properties:
+      email:
+        type: string
+      password:
+        type: string
+    type: object
+  service.LoginResponse:
+    properties:
+      expires_at:
+        type: string
+      session_token:
+        type: string
+      user:
+        $ref: '#/definitions/service.UserInfo'
+    type: object
+  service.RegisterRequest:
+    properties:
+      email:
+        type: string
+      organization_name:
+        type: string
+      password:
+        type: string
+    type: object
+  service.RegisterResponse:
+    properties:
+      email:
+        type: string
+      org_id:
+        type: integer
+      user_id:
+        type: integer
+    type: object
+  service.UserInfo:
+    properties:
+      email:
+        type: string
+      id:
+        type: integer
+      role:
+        type: string
+    type: object
+host: localhost:8084
+info:
+  contact:
+    email: support@api-scan.example.com
+    name: API Support
+  description: Personal cabinet service for OCR passport scanning. Manages organizations,
+    users, API keys.
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+  termsOfService: http://swagger.io/terms/
+  title: Cabinet Service API
+  version: "1.0"
+paths:
+  /api/v1/api-keys:
+    get:
+      consumes:
+      - application/json
+      description: Get list of API keys for the organization
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/service.APIKeyInfo'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: List API keys
+      tags:
+      - api-keys
+    post:
+      consumes:
+      - application/json
+      description: Create a new API key for the organization
+      parameters:
+      - description: API key name
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/service.CreateAPIKeyRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/service.CreateAPIKeyResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Create API key
+      tags:
+      - api-keys
+  /api/v1/api-keys/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Revoke an API key
+      parameters:
+      - description: API Key ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Revoke API key
+      tags:
+      - api-keys
+  /api/v1/auth/login:
+    post:
+      consumes:
+      - application/json
+      description: Authenticate and get session token
+      parameters:
+      - description: Login credentials
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/service.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/service.LoginResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Login
+      tags:
+      - auth
+  /api/v1/auth/logout:
+    post:
+      consumes:
+      - application/json
+      description: Invalidate session
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Logout
+      tags:
+      - auth
+  /api/v1/auth/register:
+    post:
+      consumes:
+      - application/json
+      description: Register a new organization with admin user
+      parameters:
+      - description: Registration data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/service.RegisterRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/service.RegisterResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Register new organization
+      tags:
+      - auth
+  /health:
+    get:
+      consumes:
+      - application/json
+      description: Check if the cabinet service is running
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Health check
+      tags:
+      - health
+swagger: "2.0"

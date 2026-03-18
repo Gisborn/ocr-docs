@@ -123,6 +123,29 @@ services:
     profiles:
       - gateway
 
+  # Cabinet Service (личный кабинет)
+  cabinet:
+    build:
+      context: .
+      dockerfile: services/cabinet/Dockerfile
+    container_name: api-scan-cabinet
+    environment:
+      PORT: "8080"
+      DATABASE_URL: "postgres://api_scan:api_scan_secret@postgres:5432/api_scan"
+      BILLING_URL: "http://billing:8080"
+      BILLING_SERVICE_TOKEN: "${BILLING_SERVICE_TOKEN:-}"
+    ports:
+      - "8084:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      billing:
+        condition: service_started
+    networks:
+      - api-scan-network
+    profiles:
+      - cabinet
+
   # Billing Webhook Service (публичные webhook'и от ЮКассы)
   billing-webhook-yookassa:
     build:
