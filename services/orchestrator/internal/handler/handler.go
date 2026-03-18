@@ -7,7 +7,7 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/api-scan/api-scan/services/orchestrator/internal/service"
+	"scan.passport.local/api/services/orchestrator/internal/service"
 )
 
 // Handler HTTP обработчики

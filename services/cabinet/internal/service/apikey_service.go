@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/api-scan/api-scan/services/cabinet/internal/repository"
-	"github.com/api-scan/api-scan/services/cabinet/pkg/models"
+	"scan.passport.local/api/services/cabinet/internal/repository"
+	"scan.passport.local/api/services/cabinet/pkg/models"
 	"golang.org/x/crypto/bcrypt"
 )
 

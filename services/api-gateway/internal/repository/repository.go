@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/api-scan/api-scan/services/api-gateway/pkg/models"
+	"scan.passport.local/api/services/api-gateway/pkg/models"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )

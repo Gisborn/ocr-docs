@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/api-scan/api-scan/services/billing/internal/service"
+	"scan.passport.local/api/services/billing/internal/service"
 )
 
 // Handler HTTP обработчики Billing Service

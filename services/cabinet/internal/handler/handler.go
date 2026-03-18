@@ -6,8 +6,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/api-scan/api-scan/services/cabinet/internal/middleware"
-	"github.com/api-scan/api-scan/services/cabinet/internal/service"
+	"scan.passport.local/api/services/cabinet/internal/middleware"
+	"scan.passport.local/api/services/cabinet/internal/service"
 )
 
 // Handler HTTP обработчики Cabinet Service

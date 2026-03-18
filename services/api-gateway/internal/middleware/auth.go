@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/api-scan/api-scan/services/api-gateway/internal/repository"
+	"scan.passport.local/api/services/api-gateway/internal/repository"
 	"golang.org/x/crypto/bcrypt"
 )
 

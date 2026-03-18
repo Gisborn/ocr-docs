@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/api-scan/api-scan/services/billing/pkg/models"
+	"scan.passport.local/api/services/billing/pkg/models"
 )
 
 func TestCreateSubscription(t *testing.T) {

@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/api-scan/api-scan/pkg/billing"
+	"scan.passport.local/api/pkg/billing"
 )
 
 // MockRepository для тестирования

@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	billingrepo "github.com/api-scan/api-scan/services/billing/internal/repository"
-	"github.com/api-scan/api-scan/services/billing/pkg/models"
+	billingrepo "scan.passport.local/api/services/billing/internal/repository"
+	"scan.passport.local/api/services/billing/pkg/models"
 	"github.com/jackc/pgx/v5"
 )
 

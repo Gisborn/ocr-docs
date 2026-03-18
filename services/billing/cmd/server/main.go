@@ -28,10 +28,10 @@ import (
 	"syscall"
 	"time"
 
-	_ "github.com/api-scan/api-scan/services/billing/docs"
-	"github.com/api-scan/api-scan/services/billing/internal/handler"
-	"github.com/api-scan/api-scan/services/billing/internal/repository"
-	"github.com/api-scan/api-scan/services/billing/internal/service"
+	_ "scan.passport.local/api/services/billing/docs"
+	"scan.passport.local/api/services/billing/internal/handler"
+	"scan.passport.local/api/services/billing/internal/repository"
+	"scan.passport.local/api/services/billing/internal/service"
 	"github.com/jackc/pgx/v5/pgxpool"
 	httpSwagger "github.com/swaggo/http-swagger"
 )

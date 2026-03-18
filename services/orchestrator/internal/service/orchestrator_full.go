@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/api-scan/api-scan/pkg/normalizer"
-	"github.com/api-scan/api-scan/pkg/ocr"
+	"scan.passport.local/api/pkg/normalizer"
+	"scan.passport.local/api/pkg/ocr"
 )
 
 // FullOrchestrator полный orchestrator с Billing, OCR fallback и Circuit Breaker

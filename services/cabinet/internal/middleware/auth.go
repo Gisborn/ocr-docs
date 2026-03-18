@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/api-scan/api-scan/services/cabinet/internal/repository"
+	"scan.passport.local/api/services/cabinet/internal/repository"
 )
 
 // AuthMiddleware middleware для проверки сессии

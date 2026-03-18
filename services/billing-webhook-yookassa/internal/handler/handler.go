@@ -13,8 +13,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/api-scan/api-scan/pkg/billing"
-	"github.com/api-scan/api-scan/services/billing-webhook-yookassa/internal/repository"
+	"scan.passport.local/api/pkg/billing"
+	"scan.passport.local/api/services/billing-webhook-yookassa/internal/repository"
 )
 
 // Handler HTTP обработчики Webhook Service

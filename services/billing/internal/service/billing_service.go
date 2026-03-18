@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/api-scan/api-scan/services/billing/internal/repository"
-	"github.com/api-scan/api-scan/services/billing/pkg/models"
+	"scan.passport.local/api/services/billing/internal/repository"
+	"scan.passport.local/api/services/billing/pkg/models"
 )
 
 // BillingService сервис биллинга

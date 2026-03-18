@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/api-scan/api-scan/services/api-gateway/pkg/models"
+	"scan.passport.local/api/services/api-gateway/pkg/models"
 	"golang.org/x/crypto/bcrypt"
 )
 

@@ -9,8 +9,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/api-scan/api-scan/pkg/normalizer"
-	"github.com/api-scan/api-scan/services/orchestrator/internal/service"
+	"scan.passport.local/api/pkg/normalizer"
+	"scan.passport.local/api/services/orchestrator/internal/service"
 )
 
 // MockOrchestrator мок для тестирования

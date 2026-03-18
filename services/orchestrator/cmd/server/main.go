@@ -9,9 +9,9 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/api-scan/api-scan/pkg/ocr"
-	"github.com/api-scan/api-scan/services/orchestrator/internal/handler"
-	"github.com/api-scan/api-scan/services/orchestrator/internal/service"
+	"scan.passport.local/api/pkg/ocr"
+	"scan.passport.local/api/services/orchestrator/internal/handler"
+	"scan.passport.local/api/services/orchestrator/internal/service"
 )
 
 func main() {

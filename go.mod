@@ -1,4 +1,4 @@
-module github.com/api-scan/api-scan
+module scan.passport.local/api
 
 go 1.25.0
 

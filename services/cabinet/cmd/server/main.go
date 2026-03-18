@@ -24,11 +24,11 @@ import (
 	"syscall"
 	"time"
 
-	_ "github.com/api-scan/api-scan/services/cabinet/docs"
-	"github.com/api-scan/api-scan/services/cabinet/internal/handler"
-	"github.com/api-scan/api-scan/services/cabinet/internal/middleware"
-	"github.com/api-scan/api-scan/services/cabinet/internal/repository"
-	"github.com/api-scan/api-scan/services/cabinet/internal/service"
+	_ "scan.passport.local/api/services/cabinet/docs"
+	"scan.passport.local/api/services/cabinet/internal/handler"
+	"scan.passport.local/api/services/cabinet/internal/middleware"
+	"scan.passport.local/api/services/cabinet/internal/repository"
+	"scan.passport.local/api/services/cabinet/internal/service"
 	"github.com/jackc/pgx/v5/pgxpool"
 	httpSwagger "github.com/swaggo/http-swagger"
 )

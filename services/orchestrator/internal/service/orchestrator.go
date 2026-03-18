@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/api-scan/api-scan/pkg/normalizer"
-	"github.com/api-scan/api-scan/pkg/ocr"
+	"scan.passport.local/api/pkg/normalizer"
+	"scan.passport.local/api/pkg/ocr"
 )
 
 // OCRProvider интерфейс OCR провайдера (alias для ocr.Provider)

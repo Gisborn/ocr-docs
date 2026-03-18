@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/api-scan/api-scan/services/cabinet/pkg/models"
+	"scan.passport.local/api/services/cabinet/pkg/models"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )

@@ -9,8 +9,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/api-scan/api-scan/services/billing-webhook-yookassa/internal/handler"
-	"github.com/api-scan/api-scan/services/billing-webhook-yookassa/internal/repository"
+	"scan.passport.local/api/services/billing-webhook-yookassa/internal/handler"
+	"scan.passport.local/api/services/billing-webhook-yookassa/internal/repository"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
