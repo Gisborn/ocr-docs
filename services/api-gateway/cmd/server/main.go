@@ -31,6 +31,7 @@ import (
 	"scan.passport.local/api/services/api-gateway/internal/handler"
 	"scan.passport.local/api/services/api-gateway/internal/middleware"
 	"scan.passport.local/api/services/api-gateway/internal/repository"
+	"scan.passport.local/api/pkg/logger"
 	"github.com/jackc/pgx/v5/pgxpool"
 	httpSwagger "github.com/swaggo/http-swagger"
 )
@@ -99,10 +100,14 @@ func main() {
 	)
 	mux.Handle("/v1/", apiHandler)
 
+	// Оборачиваем в CORS и logging middleware
+	corsMux := middleware.CORS(mux)
+	loggedMux := logger.LoggingMiddleware(corsMux)
+	
 	// Создаем сервер
 	server := &http.Server{
 		Addr:         ":" + port,
-		Handler:      mux,
+		Handler:      loggedMux,
 		ReadTimeout:  15 * time.Second,
 		WriteTimeout: 30 * time.Second,
 		IdleTimeout:  60 * time.Second,

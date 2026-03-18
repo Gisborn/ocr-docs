@@ -22,9 +22,10 @@ func NewAuthMiddleware(repo repository.Repository) *AuthMiddleware {
 type contextKey string
 
 const (
-	ContextKeyUserID contextKey = "user_id"
-	ContextKeyOrgID  contextKey = "org_id"
-	ContextKeyRole   contextKey = "role"
+	ContextKeyUserID            contextKey = "user_id"
+	ContextKeyOrgID             contextKey = "org_id"
+	ContextKeyRole              contextKey = "role"
+	ContextKeyBillingAccountID  contextKey = "billing_account_id"
 )
 
 // Handler проверяет сессию
@@ -44,10 +45,18 @@ func (m *AuthMiddleware) Handler(next http.Handler) http.Handler {
 			return
 		}
 
+		// Получаем организацию для billing_account_id
+		org, err := m.repo.GetOrganizationByID(r.Context(), session.OrgID)
+		if err != nil || org == nil {
+			http.Error(w, `{"error":"organization not found"}`, http.StatusUnauthorized)
+			return
+		}
+
 		// Добавляем в контекст
 		ctx := r.Context()
 		ctx = context.WithValue(ctx, ContextKeyUserID, session.UserID)
 		ctx = context.WithValue(ctx, ContextKeyOrgID, session.OrgID)
+		ctx = context.WithValue(ctx, ContextKeyBillingAccountID, org.BillingAccountID)
 
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
@@ -98,6 +107,14 @@ func GetUserID(ctx context.Context) int64 {
 // GetOrgID возвращает ID организации из контекста
 func GetOrgID(ctx context.Context) int64 {
 	if id, ok := ctx.Value(ContextKeyOrgID).(int64); ok {
+		return id
+	}
+	return 0
+}
+
+// GetBillingAccountID возвращает ID billing аккаунта из контекста
+func GetBillingAccountID(ctx context.Context) int64 {
+	if id, ok := ctx.Value(ContextKeyBillingAccountID).(int64); ok {
 		return id
 	}
 	return 0

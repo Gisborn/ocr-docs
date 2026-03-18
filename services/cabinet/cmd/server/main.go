@@ -29,6 +29,7 @@ import (
 	"scan.passport.local/api/services/cabinet/internal/middleware"
 	"scan.passport.local/api/services/cabinet/internal/repository"
 	"scan.passport.local/api/services/cabinet/internal/service"
+	"scan.passport.local/api/pkg/logger"
 	"github.com/jackc/pgx/v5/pgxpool"
 	httpSwagger "github.com/swaggo/http-swagger"
 )
@@ -68,6 +69,11 @@ func main() {
 	// Настраиваем маршруты
 	mux := http.NewServeMux()
 
+	// Static files (Личный Кабинет UI)
+	pagesDir := getEnv("PAGES_DIR", "./pages")
+	fs := http.FileServer(http.Dir(pagesDir))
+	mux.Handle("/", fs)
+
 	// Swagger UI
 	mux.HandleFunc("/swagger/", httpSwagger.WrapHandler)
 
@@ -82,6 +88,8 @@ func main() {
 	protected := authMiddleware.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		path := r.URL.Path
 		switch {
+		case path == "/api/v1/auth/verify":
+			httpHandler.Verify(w, r)
 		case path == "/api/v1/auth/logout":
 			httpHandler.Logout(w, r)
 		case path == "/api/v1/api-keys":
@@ -100,10 +108,14 @@ func main() {
 	}))
 	mux.Handle("/api/v1/", protected)
 
+	// Оборачиваем в logging и CORS middleware
+	loggedMux := logger.LoggingMiddleware(mux)
+	corsMux := middleware.CORS(loggedMux)
+	
 	// Создаем сервер
 	server := &http.Server{
 		Addr:         ":" + port,
-		Handler:      mux,
+		Handler:      corsMux,
 		ReadTimeout:  15 * time.Second,
 		WriteTimeout: 30 * time.Second,
 		IdleTimeout:  60 * time.Second,

@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API-Scan - Личный Кабинет</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f5f5;
+            color: #333;
+            line-height: 1.6;
+        }
+        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+        }
+        .header h1 { font-size: 28px; margin-bottom: 10px; }
+        .card {
+            background: white;
+            border-radius: 10px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .card h2 { margin-bottom: 20px; color: #667eea; }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 5px; font-weight: 500; }
+        .form-group input {
+            width: 100%;
+            padding: 10px 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        .btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.3s;
+        }
+        .btn:hover { background: #5a6fd6; }
+        .btn-secondary { background: #6c757d; }
+        .btn-secondary:hover { background: #5a6268; }
+        .btn-danger { background: #dc3545; }
+        .btn-danger:hover { background: #c82333; }
+        .hidden { display: none !important; }
+        .alert {
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+        }
+        .alert-success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .alert-error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .alert-info { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+        }
+        .stat-card h3 { font-size: 14px; opacity: 0.9; margin-bottom: 10px; }
+        .stat-card .value { font-size: 32px; font-weight: bold; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #eee; }
+        th { font-weight: 600; color: #667eea; }
+        .badge {
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        .badge-success { background: #d4edda; color: #155724; }
+        .badge-warning { background: #fff3cd; color: #856404; }
+        .badge-danger { background: #f8d7da; color: #721c24; }
+        .key-display {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: monospace;
+            word-break: break-all;
+            margin: 10px 0;
+            border: 2px dashed #667eea;
+        }
+        .nav { display: flex; gap: 10px; margin-bottom: 20px; }
+        .nav button { flex: 1; }
+        pre {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            font-size: 12px;
+        }
+        .loading { opacity: 0.6; pointer-events: none; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>🔐 API-Scan - Личный Кабинет</h1>
+            <p>Управление API ключами, балансом и тарифами</p>
+        </div>
+
+        <!-- Auth Section -->
+        <div id="authSection" class="card">
+            <h2>🔑 Вход в систему</h2>
+            <div id="authAlert"></div>
+            <div class="form-group">
+                <label>Email</label>
+                <input type="email" id="loginEmail" value="test@example.com" placeholder="test@example.com">
+            </div>
+            <div class="form-group">
+                <label>Пароль</label>
+                <input type="password" id="loginPassword" value="password" placeholder="password">
+            </div>
+            <button class="btn" onclick="login()">Войти</button>
+            <button class="btn btn-secondary" onclick="showRegister()">Регистрация</button>
+        </div>
+
+        <!-- Register Section -->
+        <div id="registerSection" class="card hidden">
+            <h2>📝 Регистрация</h2>
+            <div id="registerAlert"></div>
+            <div class="form-group">
+                <label>Название организации</label>
+                <input type="text" id="regOrgName" placeholder="ООО Ромашка">
+            </div>
+            <div class="form-group">
+                <label>Email</label>
+                <input type="email" id="regEmail" placeholder="admin@company.ru">
+            </div>
+            <div class="form-group">
+                <label>Пароль</label>
+                <input type="password" id="regPassword" placeholder="Минимум 8 символов">
+            </div>
+            <button class="btn" onclick="register()">Зарегистрироваться</button>
+            <button class="btn btn-secondary" onclick="showLogin()">Уже есть аккаунт</button>
+        </div>
+
+        <!-- Dashboard -->
+        <div id="dashboard" class="hidden">
+            <!-- Navigation -->
+            <div class="nav">
+                <button class="btn" onclick="showTab('overview')">📊 Обзор</button>
+                <button class="btn" onclick="showTab('keys')">🔑 API Ключи</button>
+                <button class="btn" onclick="showTab('billing')">💰 Биллинг</button>
+            </div>
+            <button class="btn btn-danger" onclick="logout()" style="float: right; margin-top: -60px;">Выйти</button>
+
+            <!-- Overview Tab -->
+            <div id="overviewTab" class="tab-content">
+                <div class="grid">
+                    <div class="stat-card">
+                        <h3>Баланс (₽)</h3>
+                        <div class="value" id="realBalance">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Предоплата (₽)</h3>
+                        <div class="value" id="prepaidBalance">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <h3>API Ключей</h3>
+                        <div class="value" id="keyCount">0</div>
+                    </div>
+                </div>
+
+                <div class="card" style="margin-top: 20px;">
+                    <h2>📋 Информация об организации</h2>
+                    <p><strong>ID:</strong> <span id="orgId">-</span></p>
+                    <p><strong>Название:</strong> <span id="orgName">-</span></p>
+                    <p><strong>Email:</strong> <span id="orgEmail">-</span></p>
+                    <p><strong>Тариф:</strong> <span id="orgTariff">-</span></p>
+                </div>
+            </div>
+
+            <!-- API Keys Tab -->
+            <div id="keysTab" class="tab-content hidden">
+                <div class="card">
+                    <h2>🔑 API Ключи</h2>
+                    <div id="keyAlert"></div>
+                    <button class="btn" onclick="createApiKey()" style="margin-bottom: 20px;">+ Создать новый ключ</button>
+                    
+                    <div id="newKeySection" class="hidden" style="margin-bottom: 20px;">
+                        <div class="alert alert-success">
+                            <strong>✓ Ключ создан!</strong> Сохраните его, он больше не будет показан:
+                        </div>
+                        <div class="key-display" id="newKeyValue"></div>
+                        <button class="btn" onclick="copyKey()">📋 Копировать</button>
+                        <button class="btn btn-secondary" onclick="hideNewKey()">Скрыть</button>
+                    </div>
+
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Название</th>
+                                <th>Статус</th>
+                                <th>Лимит (RPS)</th>
+                                <th>Создан</th>
+                                <th>Действия</th>
+                            </tr>
+                        </thead>
+                        <tbody id="keysTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Billing Tab -->
+            <div id="billingTab" class="tab-content hidden">
+                <div class="card">
+                    <h2>💰 Биллинг</h2>
+                    <div id="billingAlert"></div>
+                    
+                    <h3 style="margin: 20px 0 10px;">Пополнение баланса (мок)</h3>
+                    <div class="form-group">
+                        <label>Сумма (₽)</label>
+                        <input type="number" id="topupAmount" value="1000" min="100" step="100">
+                    </div>
+                    <button class="btn" onclick="topupBalance()">Пополнить баланс</button>
+
+                    <h3 style="margin: 30px 0 10px;">История операций</h3>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Дата</th>
+                                <th>Тип</th>
+                                <th>Сумма (₽)</th>
+                                <th>Статус</th>
+                            </tr>
+                        </thead>
+                        <tbody id="billingTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // API Base URL
+        const API_BASE = 'http://localhost:8084';
+        const BILLING_API = 'http://localhost:8080';
+        
+        // State
+        let sessionToken = localStorage.getItem('sessionToken');
+        let orgData = null;
+        let billingAccountId = null;
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            if (sessionToken) {
+                loadDashboard();
+            }
+        });
+
+        // Auth Functions
+        async function login() {
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
+            
+            showAlert('authAlert', 'info', 'Вход...');
+            
+            try {
+                const res = await fetch(`${API_BASE}/api/v1/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+                
+                const data = await res.json();
+                
+                if (res.ok && data.session_token) {
+                    sessionToken = data.session_token;
+                    localStorage.setItem('sessionToken', sessionToken);
+                    orgData = data.user;
+                    showAlert('authAlert', 'success', 'Успешный вход!');
+                    loadDashboard();
+                } else {
+                    showAlert('authAlert', 'error', data.error || 'Ошибка входа');
+                }
+            } catch (e) {
+                showAlert('authAlert', 'error', 'Ошибка соединения: ' + e.message);
+            }
+        }
+
+        async function register() {
+            const orgName = document.getElementById('regOrgName').value;
+            const email = document.getElementById('regEmail').value;
+            const password = document.getElementById('regPassword').value;
+            
+            if (!orgName || !email || !password) {
+                showAlert('registerAlert', 'error', 'Заполните все поля');
+                return;
+            }
+            
+            showAlert('registerAlert', 'info', 'Регистрация...');
+            
+            try {
+                const res = await fetch(`${API_BASE}/api/v1/auth/register`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ org_name: orgName, email, password })
+                });
+                
+                const data = await res.json();
+                
+                if (res.ok) {
+                    showAlert('registerAlert', 'success', 'Регистрация успешна! Теперь войдите.');
+                    setTimeout(showLogin, 1500);
+                } else {
+                    showAlert('registerAlert', 'error', data.error || 'Ошибка регистрации');
+                }
+            } catch (e) {
+                showAlert('registerAlert', 'error', 'Ошибка соединения: ' + e.message);
+            }
+        }
+
+        async function logout() {
+            if (sessionToken) {
+                await fetch(`${API_BASE}/api/v1/auth/logout`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${sessionToken}` }
+                });
+            }
+            sessionToken = null;
+            localStorage.removeItem('sessionToken');
+            localStorage.removeItem('apiKey');
+            location.reload();
+        }
+
+        // Dashboard Functions
+        async function loadDashboard() {
+            document.getElementById('authSection').classList.add('hidden');
+            document.getElementById('registerSection').classList.add('hidden');
+            document.getElementById('dashboard').classList.remove('hidden');
+            
+            // Load org data
+            await loadOrgData();
+            await loadBalance();
+            await loadApiKeys();
+            showTab('overview');
+        }
+
+        async function loadOrgData() {
+            // Get current user info
+            try {
+                const res = await fetch(`${API_BASE}/api/v1/auth/verify`, {
+                    headers: { 'Authorization': `Bearer ${sessionToken}` }
+                });
+                
+                if (!res.ok) {
+                    // Token invalid
+                    logout();
+                    return;
+                }
+                
+                const data = await res.json();
+                document.getElementById('orgId').textContent = data.org_id || '-';
+                document.getElementById('orgEmail').textContent = data.email || '-';
+                
+                // Try to get org details from API keys endpoint
+                billingAccountId = data.billing_account_id || 1;
+            } catch (e) {
+                console.error('Error loading org data:', e);
+            }
+        }
+
+        async function loadBalance() {
+            if (!billingAccountId) return;
+            
+            // Получаем сохраненный API ключ
+            const apiKey = localStorage.getItem('apiKey');
+            
+            if (!apiKey) {
+                document.getElementById('realBalance').textContent = '?';
+                document.getElementById('prepaidBalance').textContent = '?';
+                document.getElementById('orgTariff').textContent = 'Создайте API ключ';
+                return;
+            }
+            
+            try {
+                const res = await fetch(`${BILLING_API}/v1/billing/accounts/${billingAccountId}/balance`, {
+                    headers: { 'X-Api-Key': apiKey }
+                });
+                
+                if (!res.ok) {
+                    console.error('Balance request failed:', await res.text());
+                    return;
+                }
+                
+                const data = await res.json();
+                document.getElementById('realBalance').textContent = data.real_balance_rub || 0;
+                document.getElementById('prepaidBalance').textContent = data.prepaid_balance_rub || 0;
+                document.getElementById('orgTariff').textContent = 'Active';
+            } catch (e) {
+                console.error('Error loading balance:', e);
+            }
+        }
+
+        async function loadApiKeys() {
+            try {
+                const res = await fetch(`${API_BASE}/api/v1/api-keys`, {
+                    headers: { 'Authorization': `Bearer ${sessionToken}` }
+                });
+                
+                if (!res.ok) {
+                    showAlert('keyAlert', 'error', 'Ошибка загрузки ключей');
+                    return;
+                }
+                
+                const keys = await res.json();
+                document.getElementById('keyCount').textContent = keys.length;
+                
+                const tbody = document.getElementById('keysTableBody');
+                tbody.innerHTML = '';
+                
+                keys.forEach(key => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>${key.id}</td>
+                        <td>${key.name}</td>
+                        <td><span class="badge badge-${key.status === 'active' ? 'success' : 'danger'}">${key.status}</span></td>
+                        <td>${key.rate_limit_rps}</td>
+                        <td>${new Date(key.created_at).toLocaleDateString()}</td>
+                        <td>
+                            ${key.status === 'active' 
+                                ? `<button class="btn btn-danger" onclick="revokeKey(${key.id})">Отозвать</button>` 
+                                : '-'}
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            } catch (e) {
+                console.error('Error loading keys:', e);
+            }
+        }
+
+        async function createApiKey() {
+            const name = prompt('Название ключа:', 'Production');
+            if (!name) return;
+            
+            try {
+                const res = await fetch(`${API_BASE}/api/v1/api-keys`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${sessionToken}`
+                    },
+                    body: JSON.stringify({ name })
+                });
+                
+                const data = await res.json();
+                
+                if (res.ok && data.full_key) {
+                    document.getElementById('newKeyValue').textContent = data.full_key;
+                    document.getElementById('newKeySection').classList.remove('hidden');
+                    // Сохраняем ключ для запросов баланса
+                    localStorage.setItem('apiKey', data.full_key);
+                    loadApiKeys();
+                    // Обновляем баланс
+                    loadBalance();
+                } else {
+                    showAlert('keyAlert', 'error', data.error || 'Ошибка создания ключа');
+                }
+            } catch (e) {
+                showAlert('keyAlert', 'error', 'Ошибка соединения');
+            }
+        }
+
+        async function revokeKey(keyId) {
+            if (!confirm('Отозвать ключ? Он перестанет работать.')) return;
+            
+            try {
+                const res = await fetch(`${API_BASE}/api/v1/api-keys/${keyId}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${sessionToken}` }
+                });
+                
+                if (res.ok) {
+                    showAlert('keyAlert', 'success', 'Ключ отозван');
+                    loadApiKeys();
+                } else {
+                    showAlert('keyAlert', 'error', 'Ошибка отзыва ключа');
+                }
+            } catch (e) {
+                showAlert('keyAlert', 'error', 'Ошибка соединения');
+            }
+        }
+
+        function copyKey() {
+            const key = document.getElementById('newKeyValue').textContent;
+            navigator.clipboard.writeText(key).then(() => {
+                alert('Ключ скопирован в буфер обмена!');
+            });
+        }
+
+        function hideNewKey() {
+            document.getElementById('newKeySection').classList.add('hidden');
+        }
+
+        async function topupBalance() {
+            const amount = document.getElementById('topupAmount').value;
+            showAlert('billingAlert', 'info', `В реальном приложении здесь была бы интеграция с ЮКассой для пополнения на ${amount}₽`);
+            
+            // Mock: Add balance via direct SQL or API call
+            // In production this would redirect to YooKassa
+        }
+
+        // UI Helpers
+        function showLogin() {
+            document.getElementById('authSection').classList.remove('hidden');
+            document.getElementById('registerSection').classList.add('hidden');
+        }
+
+        function showRegister() {
+            document.getElementById('authSection').classList.add('hidden');
+            document.getElementById('registerSection').classList.remove('hidden');
+        }
+
+        function showTab(tabName) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.getElementById(tabName + 'Tab').classList.remove('hidden');
+            
+            if (tabName === 'keys') loadApiKeys();
+            if (tabName === 'billing') loadBalance();
+        }
+
+        function showAlert(elementId, type, message) {
+            const el = document.getElementById(elementId);
+            el.className = `alert alert-${type}`;
+            el.textContent = message;
+        }
+    </script>
+</body>
+</html>

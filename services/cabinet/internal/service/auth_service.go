@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -138,37 +139,50 @@ type UserInfo struct {
 
 // Login выполняет вход
 func (s *AuthService) Login(ctx context.Context, req *LoginRequest) (*LoginResponse, error) {
+	log.Printf("[Login] Attempt for email: %s", req.Email)
+	
 	// Находим организацию по email
 	org, err := s.repo.GetOrganizationByEmail(ctx, strings.ToLower(req.Email))
 	if err != nil {
+		log.Printf("[Login] Database error: %v", err)
 		return nil, fmt.Errorf("database error")
 	}
 	if org == nil {
-		// Не раскрываем, что именно неверно
+		log.Printf("[Login] Organization not found for email: %s", req.Email)
 		return nil, fmt.Errorf("invalid credentials")
 	}
+	
+	log.Printf("[Login] Found organization ID: %d, status: %s, email_verified: %v", 
+		org.ID, org.Status, org.EmailVerified)
 
 	// Проверяем статус
 	if org.Status != "active" {
+		log.Printf("[Login] Account not active: %s", org.Status)
 		return nil, fmt.Errorf("account not active")
 	}
 	if !org.EmailVerified {
+		log.Printf("[Login] Email not verified")
 		return nil, fmt.Errorf("email not verified")
 	}
 
 	// Находим пользователя
 	user, err := s.repo.GetUserByEmail(ctx, org.ID, strings.ToLower(req.Email))
 	if err != nil {
+		log.Printf("[Login] Database error finding user: %v", err)
 		return nil, fmt.Errorf("database error")
 	}
 	if user == nil {
+		log.Printf("[Login] User not found in org %d", org.ID)
 		return nil, fmt.Errorf("invalid credentials")
 	}
 
 	// Проверяем пароль
 	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.Password)); err != nil {
+		log.Printf("[Login] Invalid password for user ID: %d", user.ID)
 		return nil, fmt.Errorf("invalid credentials")
 	}
+	
+	log.Printf("[Login] Password verified for user ID: %d", user.ID)
 
 	// Обновляем время входа
 	s.repo.UpdateLastLogin(ctx, user.ID)
@@ -176,6 +190,7 @@ func (s *AuthService) Login(ctx context.Context, req *LoginRequest) (*LoginRespo
 	// Создаем сессию
 	sessionToken, err := generateSessionToken()
 	if err != nil {
+		log.Printf("[Login] Failed to generate session token: %v", err)
 		return nil, fmt.Errorf("session creation failed")
 	}
 
@@ -188,6 +203,7 @@ func (s *AuthService) Login(ctx context.Context, req *LoginRequest) (*LoginRespo
 	}
 
 	if err := s.repo.CreateSession(ctx, session); err != nil {
+		log.Printf("[Login] Failed to create session: %v", err)
 		return nil, fmt.Errorf("session creation failed")
 	}
 
@@ -263,6 +279,11 @@ func (s *AuthService) CreateBillingAccount(ctx context.Context, orgID int64) (in
 	}
 
 	return result.ID, nil
+}
+
+// GetOrgByID получает организацию по ID
+func (s *AuthService) GetOrgByID(ctx context.Context, id int64) (*models.Organization, error) {
+	return s.repo.GetOrganizationByID(ctx, id)
 }
 
 // Вспомогательные функции

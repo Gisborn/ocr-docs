@@ -32,6 +32,7 @@ type Repository interface {
 	ListAPIKeys(ctx context.Context, orgID int64) ([]*models.APIKey, error)
 	RevokeAPIKey(ctx context.Context, id int64, orgID int64) error
 	CountActiveAPIKeys(ctx context.Context, orgID int64) (int, error)
+	UpdateAPIKeyHash(ctx context.Context, keyID int64, keyHash string) error
 	
 	// Sessions
 	CreateSession(ctx context.Context, session *models.Session) error
@@ -264,6 +265,15 @@ func (r *PostgresRepository) CountActiveAPIKeys(ctx context.Context, orgID int64
 		orgID,
 	).Scan(&count)
 	return count, err
+}
+
+// UpdateAPIKeyHash обновляет хеш ключа
+func (r *PostgresRepository) UpdateAPIKeyHash(ctx context.Context, keyID int64, keyHash string) error {
+	_, err := r.pool.Exec(ctx,
+		`UPDATE api_keys SET key_hash = $1, updated_at = NOW() WHERE id = $2`,
+		keyHash, keyID,
+	)
+	return err
 }
 
 // CreateSession создает сессию

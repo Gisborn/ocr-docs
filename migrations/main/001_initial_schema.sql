@@ -9,6 +9,7 @@ CREATE TABLE organizations (
     email_verified BOOLEAN DEFAULT FALSE,
     password_hash VARCHAR(255),
     billing_account_id BIGINT, -- ссылка на billing_db.accounts.id (логическая)
+    status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('active', 'pending', 'suspended', 'inactive')),
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -20,9 +21,20 @@ CREATE TABLE users (
     email VARCHAR(255) NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
     role VARCHAR(20) DEFAULT 'user' CHECK (role IN ('admin', 'user')),
+    last_login_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
     UNIQUE(org_id, email)
+);
+
+-- Таблица сессий
+CREATE TABLE sessions (
+    id VARCHAR(255) PRIMARY KEY,
+    user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    org_id INT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    token VARCHAR(255) UNIQUE NOT NULL,
+    expires_at TIMESTAMPTZ NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- Таблица API-ключей
@@ -37,6 +49,7 @@ CREATE TABLE api_keys (
     last_used_at TIMESTAMPTZ,
     revoked_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
     created_by INT REFERENCES users(id)
 );
 
@@ -56,6 +69,9 @@ CREATE INDEX idx_api_keys_key_hash ON api_keys(key_hash);
 CREATE INDEX idx_account_events_org_id ON account_events(org_id);
 CREATE INDEX idx_account_events_type ON account_events(event_type);
 CREATE INDEX idx_account_events_created_at ON account_events(created_at);
+CREATE INDEX idx_sessions_token ON sessions(token);
+CREATE INDEX idx_sessions_user_id ON sessions(user_id);
+CREATE INDEX idx_sessions_expires_at ON sessions(expires_at);
 
 -- Триггер для updated_at
 CREATE OR REPLACE FUNCTION update_updated_at_column()

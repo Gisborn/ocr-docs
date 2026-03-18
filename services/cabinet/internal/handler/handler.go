@@ -116,6 +116,47 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(resp)
 }
 
+// Verify godoc
+// @Summary Verify session
+// @Description Verify session token and return user info
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Success 200 {object} map[string]interface{}
+// @Failure 401 {object} map[string]string
+// @Router /api/v1/auth/verify [get]
+func (h *Handler) Verify(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
+		return
+	}
+
+	orgID := middleware.GetOrgID(r.Context())
+	userID := middleware.GetUserID(r.Context())
+	billingAccountID := middleware.GetBillingAccountID(r.Context())
+
+	if orgID == 0 || userID == 0 {
+		http.Error(w, `{"error":"unauthorized"}`, http.StatusUnauthorized)
+		return
+	}
+
+	// Get org details
+	org, err := h.authService.GetOrgByID(r.Context(), orgID)
+	if err != nil {
+		http.Error(w, `{"error":"organization not found"}`, http.StatusNotFound)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"org_id":             orgID,
+		"user_id":            userID,
+		"billing_account_id": billingAccountID,
+		"email":              org.Email,
+		"org_name":           org.Name,
+	})
+}
+
 // Logout godoc
 // @Summary Logout
 // @Description Invalidate session

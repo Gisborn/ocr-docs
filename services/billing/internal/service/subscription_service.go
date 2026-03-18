@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"log"
 	"math"
 	"time"
 
@@ -289,14 +290,18 @@ func (s *SubscriptionService) GetBalance(ctx context.Context, accountID int64) (
 	// Получаем снапшот
 	snapshot, err := s.repo.GetAccountBalance(ctx, accountID)
 	if err != nil {
+		log.Printf("[GetBalance] Error getting snapshot for account %d: %v", accountID, err)
 		return nil, err
 	}
+	log.Printf("[GetBalance] Got snapshot for account %d: real=%.2f, prepaid=%.2f", accountID, snapshot.RealBalanceRub, snapshot.PrepaidBalanceRub)
 
 	// Получаем события после снапшота
 	events, err := s.repo.GetBillingEventsSince(ctx, accountID, snapshot.UpdatedAt)
 	if err != nil {
+		log.Printf("[GetBalance] Error getting events: %v", err)
 		return nil, err
 	}
+	log.Printf("[GetBalance] Got %d events", len(events))
 
 	// Пересчитываем
 	realBalance := snapshot.RealBalanceRub
@@ -306,10 +311,12 @@ func (s *SubscriptionService) GetBalance(ctx context.Context, accountID int64) (
 		prepaidBalance += event.PrepaidAmountRub
 	}
 
-	// Получаем активную подписку
+	// Получаем активную подписку (необязательно)
 	sub, err := s.repo.GetActiveSubscription(ctx, accountID)
 	if err != nil {
-		return nil, err
+		// Отсутствие подписки - не ошибка
+		log.Printf("[GetBalance] No active subscription for account %d", accountID)
+		sub = nil
 	}
 
 	balance := &models.Balance{

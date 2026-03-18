@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -43,13 +44,15 @@ func (m *AuthMiddleware) Handler(next http.Handler) http.Handler {
 		// Получаем API ключ из заголовка
 		apiKey := r.Header.Get("X-Api-Key")
 		if apiKey == "" {
+			log.Printf("[Auth] Missing X-Api-Key header from %s", r.RemoteAddr)
 			http.Error(w, `{"error":"missing api key","code":"UNAUTHORIZED"}`, http.StatusUnauthorized)
 			return
 		}
 
 		// Валидируем формат ключа
-		keyID, secret, err := ParseAPIKey(apiKey)
+		keyID, _, err := ParseAPIKey(apiKey)
 		if err != nil {
+			log.Printf("[Auth] Invalid API key format from %s: %v", r.RemoteAddr, err)
 			http.Error(w, `{"error":"invalid api key format","code":"UNAUTHORIZED"}`, http.StatusUnauthorized)
 			return
 		}
@@ -57,22 +60,27 @@ func (m *AuthMiddleware) Handler(next http.Handler) http.Handler {
 		// Получаем ключ из БД
 		key, err := m.repo.GetAPIKeyByID(r.Context(), keyID)
 		if err != nil {
+			log.Printf("[Auth] Database error getting key %d: %v", keyID, err)
 			http.Error(w, `{"error":"internal error","code":"INTERNAL_ERROR"}`, http.StatusInternalServerError)
 			return
 		}
 		if key == nil {
+			log.Printf("[Auth] Key not found: %d from %s", keyID, r.RemoteAddr)
 			http.Error(w, `{"error":"invalid api key","code":"UNAUTHORIZED"}`, http.StatusUnauthorized)
 			return
 		}
 
 		// Проверяем статус ключа
 		if !key.Valid() {
+			log.Printf("[Auth] Key %d is not valid (status: %s)", key.ID, key.Status)
 			http.Error(w, `{"error":"api key revoked or expired","code":"FORBIDDEN"}`, http.StatusForbidden)
 			return
 		}
 
 		// Проверяем bcrypt хеш
-		if err := bcrypt.CompareHashAndPassword([]byte(key.KeyHash), []byte(secret)); err != nil {
+		// Сравниваем с полным ключом (base64), не только с секретом
+		if err := bcrypt.CompareHashAndPassword([]byte(key.KeyHash), []byte(apiKey)); err != nil {
+			log.Printf("[Auth] Invalid key hash for key %d from %s: %v", keyID, r.RemoteAddr, err)
 			http.Error(w, `{"error":"invalid api key","code":"UNAUTHORIZED"}`, http.StatusUnauthorized)
 			return
 		}
@@ -80,12 +88,15 @@ func (m *AuthMiddleware) Handler(next http.Handler) http.Handler {
 		// Проверяем организацию
 		org, err := m.repo.GetOrganization(r.Context(), key.OrganizationID)
 		if err != nil || org == nil || !org.Valid() {
+			log.Printf("[Auth] Organization %d invalid or not found", key.OrganizationID)
 			http.Error(w, `{"error":"organization inactive or not found","code":"FORBIDDEN"}`, http.StatusForbidden)
 			return
 		}
 
 		// Обновляем last_used_at (асинхронно)
 		go m.repo.UpdateAPIKeyLastUsed(context.Background(), key.ID)
+		
+		log.Printf("[Auth] Authenticated org=%d key=%d path=%s", org.ID, key.ID, r.URL.Path)
 
 		// Добавляем данные в контекст
 		ctx := r.Context()

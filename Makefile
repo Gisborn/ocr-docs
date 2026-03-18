@@ -5,13 +5,17 @@
 # Default target
 help:
 	@echo "API-Scan Makefile commands:"
-	@echo "  make build        - Build all services"
-	@echo "  make test         - Run all tests"
-	@echo "  make docker-up    - Start all services with Docker Compose"
+	@echo "  make docker-up    - Start all services (infra + migrate + services)"
 	@echo "  make docker-down  - Stop all services"
+	@echo "  make health       - Check all service health status"
+	@echo "  make seed         - Seed database with test data"
 	@echo "  make migrate      - Run database migrations"
+	@echo "  make build        - Build all services binaries"
+	@echo "  make test         - Run all tests"
 	@echo "  make swagger      - Generate Swagger documentation"
 	@echo "  make clean        - Clean build artifacts"
+	@echo ""
+	@echo "See LOCAL_TESTING.md for detailed testing guide"
 
 # Build all services
 build:
@@ -23,29 +27,59 @@ build:
 	@go build -o bin/cabinet ./services/cabinet/cmd/server
 	@echo "Build complete. Binaries in bin/"
 
-# Run all tests
+# Run all tests (excluding root and scripts)
 test:
 	@echo "Running tests..."
-	@go test -v ./...
+	@go test -v ./pkg/... ./services/... ./tests/...
 
 # Run tests with coverage
 test-coverage:
 	@echo "Running tests with coverage..."
 	@go test -cover ./...
 
+# Run integration tests (requires running services)
+test-integration:
+	@echo "Running integration tests..."
+	@echo "Make sure services are running: make docker-up"
+	@go test -v ./tests/integration/...
+
 # Start infrastructure and services
 docker-up:
 	@echo "Starting infrastructure..."
 	@docker-compose up -d postgres postgres-billing redis
 	@echo "Waiting for databases to be ready..."
-	@sleep 5
+	@sleep 10
+	@echo "Running migrations..."
+	@which goose > /dev/null 2>&1 && (cd migrations/main && goose up) || echo "  goose not installed, skipping migrations (DB will use init scripts)"
+	@which goose > /dev/null 2>&1 && (cd migrations/billing && goose up) || echo "  goose not installed, skipping billing migrations"
 	@echo "Starting services..."
 	@docker-compose --profile billing --profile gateway --profile cabinet up -d
+	@echo ""
+	@echo "✓ Services started! Test data available:"
+	@echo "  Email: test@example.com"
+	@echo "  Password: password"
+	@echo ""
+	@echo "Quick test:"
+	@echo "  curl -X POST http://localhost:8084/api/v1/auth/login \\"
+	@echo "    -H 'Content-Type: application/json' \\"
+	@echo "    -d '{\"email\":\"test@example.com\",\"password\":\"password\"}'"
 
 # Stop all services
 docker-down:
 	@echo "Stopping all services..."
 	@docker-compose --profile billing --profile gateway --profile cabinet down
+
+# Check health of all services
+health:
+	@echo "Checking service health..."
+	@echo "API Gateway:     $$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8080/health 2>/dev/null || echo 'DOWN')"
+	@echo "Billing:         $$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8081/health 2>/dev/null || echo 'DOWN')"
+	@echo "Billing Webhook: $$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8082/health 2>/dev/null || echo 'DOWN')"
+	@echo "Orchestrator:    $$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8083/health 2>/dev/null || echo 'DOWN')"
+	@echo "Cabinet:         $$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8084/health 2>/dev/null || echo 'DOWN')"
+	@echo "PostgreSQL:      $$(docker exec api-scan-postgres pg_isready -U api_scan >/dev/null 2>&1 && echo 'UP' || echo 'DOWN')"
+	@echo "PostgreSQL-Bill: $$(docker exec api-scan-postgres-billing pg_isready -U billing >/dev/null 2>&1 && echo 'UP' || echo 'DOWN')"
+	@echo "Redis:           $$(docker exec api-scan-redis redis-cli ping 2>/dev/null || echo 'DOWN')"
 
 # Run migrations
 migrate:
@@ -60,6 +94,16 @@ migrate-down:
 	@cd migrations/main && goose down
 	@echo "Rolling back billing database..."
 	@cd ../billing && goose down
+
+# Seed database with test data
+seed:
+	@echo "Seeding main database..."
+	@docker exec -i api-scan-postgres psql -U api_scan -d api_scan < scripts/seed.sql 2>/dev/null || \
+		psql "postgres://api_scan:api_scan_secret@localhost:5432/api_scan" < scripts/seed.sql
+	@echo "Seeding billing database..."
+	@docker exec -i api-scan-postgres-billing psql -U billing -d billing_db < scripts/seed.sql 2>/dev/null || \
+		psql "postgres://billing:billing_secret@localhost:5433/billing_db" < scripts/seed.sql
+	@echo "✓ Test data seeded"
 
 # Generate Swagger documentation
 swagger:

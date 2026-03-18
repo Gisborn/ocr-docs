@@ -1,4 +1,4 @@
-FROM golang:1.22-alpine AS builder
+FROM golang:1.25-alpine AS builder
 
 WORKDIR /app
 
@@ -21,6 +21,9 @@ WORKDIR /root/
 
 # Копируем бинарник из builder
 COPY --from=builder /app/cabinet-service .
+
+# Копируем статические файлы (ЛК UI)
+COPY --from=builder /app/services/cabinet/pages ./pages
 
 # Открываем порт
 EXPOSE 8084

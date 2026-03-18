@@ -46,8 +46,7 @@ services:
   redis:
     image: redis:7-alpine
     container_name: api-scan-redis
-    ports:
-      - "6379:6379"
+    # Port not exposed - only internal Docker network access
     volumes:
       - redis_data:/data
     healthcheck:

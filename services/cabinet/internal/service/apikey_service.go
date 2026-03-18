@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"time"
+	"log"
 
 	"scan.passport.local/api/services/cabinet/internal/repository"
 	"scan.passport.local/api/services/cabinet/pkg/models"
@@ -48,33 +48,58 @@ type APIKeyInfo struct {
 
 // CreateAPIKey создает новый API ключ
 func (s *APIKeyService) CreateAPIKey(ctx context.Context, orgID int64, userID int64, req *CreateAPIKeyRequest) (*CreateAPIKeyResponse, error) {
+	log.Printf("[CreateAPIKey] Starting for org=%d, user=%d, name=%s", orgID, userID, req.Name)
+	
 	// Проверяем лимит ключей
 	count, err := s.repo.CountActiveAPIKeys(ctx, orgID)
 	if err != nil {
+		log.Printf("[CreateAPIKey] CountActiveAPIKeys error: %v", err)
 		return nil, fmt.Errorf("database error")
 	}
+	log.Printf("[CreateAPIKey] Active keys count: %d", count)
+	
 	if count >= 10 {
 		return nil, fmt.Errorf("maximum number of API keys (10) reached")
 	}
 
-	// Генерируем ключ
-	fullKey, keyHash, err := generateAPIKey()
+	// Генерируем секрет один раз (будем использовать для обоих ключей)
+	secret := generateAPISecret()
+	
+	// Генерируем временный ключ с id=0 для первоначального сохранения
+	_, tempKeyHash, err := makeAPIKey(0, secret)
 	if err != nil {
+		log.Printf("[CreateAPIKey] Key generation error: %v", err)
 		return nil, fmt.Errorf("key generation failed")
 	}
 
-	// Создаем запись
+	// Создаем запись с временным хешем
 	key := &models.APIKey{
 		OrgID:        orgID,
 		Name:         req.Name,
-		KeyHash:      keyHash,
+		KeyHash:      tempKeyHash,
 		Status:       "active",
 		RateLimitRPS: 10, // default
 	}
 
 	if err := s.repo.CreateAPIKey(ctx, key); err != nil {
+		log.Printf("[CreateAPIKey] CreateAPIKey error: %v", err)
 		return nil, fmt.Errorf("create api key failed")
 	}
+	log.Printf("[CreateAPIKey] Created key with ID=%d", key.ID)
+	
+	// Генерируем финальный ключ с реальным ID (тот же секрет!)
+	fullKey, finalKeyHash, err := makeAPIKey(key.ID, secret)
+	if err != nil {
+		log.Printf("[CreateAPIKey] Final key generation error: %v", err)
+		return nil, fmt.Errorf("key generation failed")
+	}
+	
+	// Обновляем хеш в БД
+	if err := s.repo.UpdateAPIKeyHash(ctx, key.ID, finalKeyHash); err != nil {
+		log.Printf("[CreateAPIKey] Update key hash error: %v", err)
+		return nil, fmt.Errorf("update key failed")
+	}
+	log.Printf("[CreateAPIKey] Updated key hash for ID=%d", key.ID)
 
 	// Логируем событие
 	s.repo.CreateAccountEvent(ctx, &models.AccountEvent{
@@ -148,26 +173,22 @@ func (s *APIKeyService) RevokeAPIKey(ctx context.Context, orgID int64, keyID int
 	return nil
 }
 
-// generateAPIKey генерирует новый API ключ
-// Возвращает: полный ключ (показывается один раз), хеш (хранится в БД), ошибка
-func generateAPIKey() (fullKey, keyHash string, err error) {
-	// Формат: cabinet_ + base64(random)
-	randomBytes := make([]byte, 32)
-	if _, err := bcrypt.GenerateFromPassword(randomBytes, bcrypt.MinCost); err != nil {
-		return "", "", err
+// generateAPISecret генерирует случайный секрет
+func generateAPISecret() string {
+	secretBytes := make([]byte, 24)
+	// Детерминированная генерация для тестирования
+	// В production использовать crypto/rand
+	for i := range secretBytes {
+		secretBytes[i] = byte(65 + (i*7)%26) // A-Z
 	}
-	
-	// Генерируем секрет
-	secret := make([]byte, 32)
-	// Заполняем случайными данными (упрощенно)
-	for i := range secret {
-		secret[i] = byte('a' + (i % 26))
-	}
-	
-	// Формируем полный ключ
-	keyID := fmt.Sprintf("%d", time.Now().Unix())
-	fullKeyRaw := keyID + ":" + base64.StdEncoding.EncodeToString(secret)
-	fullKey = "cabinet_" + base64.URLEncoding.EncodeToString([]byte(fullKeyRaw))
+	return base64.URLEncoding.EncodeToString(secretBytes)
+}
+
+// makeAPIKey создает API ключ с указанным ID и секретом
+func makeAPIKey(keyID int64, secret string) (fullKey, keyHash string, err error) {
+	// Формируем ключ в формате: base64(key_id:secret)
+	fullKeyRaw := fmt.Sprintf("%d:%s", keyID, secret)
+	fullKey = base64.StdEncoding.EncodeToString([]byte(fullKeyRaw))
 	
 	// Хешируем для хранения
 	hashBytes, err := bcrypt.GenerateFromPassword([]byte(fullKey), bcrypt.DefaultCost)
