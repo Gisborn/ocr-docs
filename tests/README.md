@@ -4,66 +4,107 @@
 
 ```
 tests/
-├── integration/          # Интеграционные тесты
-│   ├── billing_test.go
-│   ├── ocr_test.go
-│   └── api_test.go
-├── e2e/                  # End-to-end тесты
-│   └── recognition_flow_test.go
-├── fixtures/             # Тестовые данные
-│   ├── passports/        # Изображения паспортов
-│   └── ocr_responses/    # Примеры ответов OCR
-└── mocks/                # Моки внешних сервисов
-    └── ocr/
+├── integration/          # Интеграционные тесты (с реальной БД)
+│   └── cabinet_test.go   # Тесты Cabinet + API Gateway
+└── mocks/                # Моки для OCR провайдеров
 ```
 
-## Интеграционные тесты
+## Типы тестов
 
-Тестируют взаимодействие компонентов с реальными зависимостями (PostgreSQL, Redis).
+### 1. Unit Tests (с моками)
+
+Тестируют отдельные компоненты с мок-репозиториями.
 
 ```bash
-# Запустить зависимости
-docker-compose up -d
+# Запуск
+make test
 
-# Применить миграции
-make migrate-up
-
-# Запустить тесты
-go test ./tests/integration/... -v
+# Или
+go test ./services/...
 ```
 
-## E2E тесты
+**Покрытие:**
+- `services/billing/internal/service` — billing logic
+- `services/api-gateway/internal/middleware` — auth middleware
+- `services/billing-webhook-yookassa` — webhook handling
+- `services/orchestrator` — OCR processing
 
-Тестируют полные сценарии от API до результата.
+### 2. Integration Tests (с реальной БД)
+
+Тестируют полные сценарии с реальными базами данных.
 
 ```bash
-# Запустить все сервисы
+# 1. Запустить все сервисы
 make docker-up
 
-# Запустить e2e тесты
-go test ./tests/e2e/... -v
+# 2. Запустить интеграционные тесты
+make test-integration
 ```
 
-## Тестовые данные
+**Сценарии:**
+- Регистрация → Логин → Создание API ключа → Проверка баланса
+- Сессии: создание, валидация, выход
+- API ключи: формат, валидация
 
-### Паспорта
+**Требования:**
+- PostgreSQL на портах 5432, 5433
+- Redis на порту 6379
+- Cabinet Service на порту 8084
+- API Gateway на порту 8080
 
-- `fixtures/passports/good/` — качественные фото (≥95% точности)
-- `fixtures/passports/medium/` — среднее качество
-- `fixtures/passports/bad/` — плохое качество (для теста порога confidence)
+### 3. Quick Test Script
 
-**Важно:** Не коммитить реальные паспорта! Использовать:
-- Сгенерированные тестовые изображения
-- Образцы с затёртыми/изменёнными данными
-- Публично доступные образцы
-
-## Моки OCR
-
-Директория `tests/mocks/ocr/` содержит конфигурацию Wiremock для эмуляции OCR-провайдеров.
+Быстрая проверка всех сервисов:
 
 ```bash
-# Запустить мок
-docker-compose up ocr-mock -d
-
-# Мок доступен на http://localhost:8080
+./scripts/quick-test.sh
 ```
+
+Проверяет:
+1. Health всех сервисов
+2. Логин в Cabinet
+3. Создание API ключа
+4. Проверку баланса
+
+## Написание тестов
+
+### Unit Test с моком
+
+```go
+func TestService_Method(t *testing.T) {
+    repo := NewMockRepository()
+    svc := NewService(repo)
+    
+    // Setup mock
+    repo.expectations = ...
+    
+    // Test
+    result, err := svc.Method(ctx, req)
+    
+    // Assert
+    assert.NoError(t, err)
+    assert.Equal(t, expected, result)
+}
+```
+
+### Integration Test
+
+```go
+func TestFlow(t *testing.T) {
+    // Подключаемся к реальной БД
+    pool, _ := pgxpool.New(ctx, databaseURL)
+    
+    // Тестируем полный сценарий
+    // 1. Создаём организацию
+    // 2. Логинимся
+    // 3. Создаём API ключ
+    // 4. Проверяем что ключ работает
+}
+```
+
+## CI/CD
+
+В pipeline должны запускаться:
+1. Unit tests (быстро, с моками)
+2. Integration tests (требуют Docker)
+3. Lint checks

@@ -1,84 +1,104 @@
 # Billing Service
 
-Сервис биллинга: резервирование, фиксация и откат транзакций.
+Сервис биллинга: управление счетами, резервирование средств, подписки.
 
 ## Назначение
 
-- Резервирование средств перед операцией (PENDING)
-- Фиксация успешных операций (COMMITTED)
-- Откат при ошибках (ROLLBACK)
-- Управление балансом и предоплаченными операциями
+- Управление балансом (real + prepaid)
+- Двухфазная фиксация транзакций (Reserve → Commit/Rollback)
+- Управление подписками
+- Интеграция с платёжными системами (YooKassa)
 
 ## Модель транзакций
 
 ```
-PENDING → COMMITTED (успех)
-       → ROLLBACK (техническая ошибка)
+RESERVE (PENDING) → COMMIT (успех)
+                  → ROLLBACK (ошибка/таймаут)
 ```
 
-**Приоритет списания:**
-1. Предоплаченные операции (`prepaid_operations_left`)
-2. Рублёвый баланс (`balance_rub`)
+**Расчёт баланса:**
+```
+Balance = Snapshot Balance + Σ Events Since Snapshot - Active Reservations
+```
 
-## API
+## API Endpoints
 
-### POST /reserve
+### Accounts
 
-Создание резерва перед операцией.
+| Метод | Путь | Описание |
+|-------|------|----------|
+| POST | `/accounts` | Создать счёт |
+| GET | `/accounts/{id}/balance` | Получить баланс |
 
-**Request:**
+### Transactions (Two-Phase Commit)
+
+| Метод | Путь | Описание |
+|-------|------|----------|
+| POST | `/accounts/{id}/reserve` | Зарезервировать средства |
+| POST | `/transactions/{id}/commit` | Зафиксировать транзакцию |
+| POST | `/transactions/{id}/rollback` | Откатить транзакцию |
+
+**Reserve Request:**
 ```json
 {
-  "org_id": 123,
-  "operation_type": "passport_recognition"
+  "amount_rub": 7.00,
+  "service_id": "passport_rf"
 }
 ```
 
-**Response:**
+**Reserve Response:**
 ```json
 {
-  "transaction_id": "txn_...",
-  "status": "PENDING",
-  "amount_rub": 7.00
+  "request_id": "req_abc123",
+  "status": "pending",
+  "expires_at": "2026-03-18T16:30:00Z"
 }
 ```
 
-### POST /commit
+### Subscriptions
 
-Фиксация успешной операции.
+| Метод | Путь | Описание |
+|-------|------|----------|
+| POST | `/accounts/{id}/subscriptions` | Создать подписку |
+| POST | `/accounts/{id}/subscriptions/upgrade` | Апгрейд подписки |
+| POST | `/accounts/{id}/subscriptions/cancel` | Отмена подписки |
 
-**Request:**
-```json
-{
-  "transaction_id": "txn_..."
-}
-```
+### Payments
 
-### POST /rollback
+| Метод | Путь | Описание |
+|-------|------|----------|
+| POST | `/accounts/{id}/payments` | Создать платёж |
+| GET | `/payments/{id}` | Статус платежа |
 
-Откат резерва при ошибке.
+## База данных
 
-**Request:**
-```json
-{
-  "transaction_id": "txn_..."
-}
-```
-
-## Cron-job
-
-Каждые 5 минут переводит `PENDING`-транзакции старше 2 минут в `ROLLBACK`.
+**Таблицы:**
+- `accounts` — счета организаций
+- `balance_snapshots` — снапшоты баланса
+- `billing_events` — события (immutable)
+- `reservations` — активные резервы
+- `subscriptions` — подписки
+- `payment_orders` — заказы на оплату
 
 ## Конфигурация
 
-| Переменная | Описание |
-|------------|----------|
-| `DATABASE_URL` | PostgreSQL connection string |
-| `RESERVE_TIMEOUT` | Таймаут резерва (2m) |
-| `CRON_INTERVAL` | Интервал cleanup (5m) |
+| Переменная | Описание | Значение по умолчанию |
+|------------|----------|----------------------|
+| `DATABASE_URL` | PostgreSQL connection string | — |
+| `PORT` | Порт сервера | `8080` |
+| `YOOKASSA_SECRET_KEY` | Секретный ключ ЮКассы | — |
+| `YOOKASSA_SHOP_ID` | ID магазина ЮКассы | — |
 
 ## Разработка
 
 ```bash
+# Запуск тестов
 go test ./...
+
+# Запуск сервиса
+go run ./cmd/server/main.go
 ```
+
+## Swagger
+
+Документация API: http://localhost:8081/swagger/

@@ -1,72 +1,99 @@
-# Личный кабинет
+# Cabinet Service
 
-Веб-интерфейс для управления аккаунтом организации.
+Личный кабинет с Web UI для управления аккаунтом организации.
 
 ## Структура
 
 ```
 cabinet/
-├── backend/          # API личного кабинета (Go)
-│   ├── cmd/
-│   ├── internal/
-│   └── Dockerfile
-└── frontend/         # Веб-интерфейс
-    ├── src/
-    ├── public/
-    └── Dockerfile
+├── cmd/server/           # Точка входа
+│   └── main.go
+├── internal/
+│   ├── handler/          # HTTP handlers
+│   ├── middleware/       # Auth, CORS
+│   ├── repository/       # DB layer
+│   └── service/          # Business logic
+├── pkg/models/           # Data models
+├── pages/                # Web UI (HTML/JS/CSS)
+│   └── index.html        # Single Page Application
+├── docs/                 # Swagger docs
+└── Dockerfile
 ```
 
-## Backend
+## Функциональность
 
-### Функциональность
+### Backend API
 
-- Регистрация и аутентификация (email + пароль)
-- Управление API-ключами (создание, отзыв)
-- Просмотр баланса и тарифа
-- История операций (`account_events`)
-- Интеграция с ЮКассой (пополнение баланса)
+- **Аутентификация**: Регистрация, вход/выход (сессии)
+- **API Keys**: Создание, просмотр, отзыв (макс. 10 ключей)
+- **Интеграция**: Запрос баланса через Billing Service
 
-### API Endpoints
+### Web UI
 
-| Метод | Путь | Описание |
-|-------|------|----------|
-| POST | /api/v1/auth/register | Регистрация |
-| POST | /api/v1/auth/login | Вход |
-| POST | /api/v1/auth/logout | Выход |
-| GET | /api/v1/keys | Список API-ключей |
-| POST | /api/v1/keys | Создание ключа |
-| DELETE | /api/v1/keys/:id | Отзыв ключа |
-| GET | /api/v1/balance | Баланс и тариф |
-| GET | /api/v1/events | История событий |
-| POST | /api/v1/payments | Создание платежа (ЮКасса) |
-| POST | /api/v1/payments/webhook | Вебхук ЮКассы |
+Single Page Application на vanilla JS:
+- `/` — Личный кабинет (весь функционал на одной странице)
+- Автоматическое обновление баланса
+- Создание и управление API ключами
 
-## Frontend
+## API Endpoints
 
-### Страницы
+| Метод | Путь | Auth | Описание |
+|-------|------|------|----------|
+| POST | `/api/v1/auth/register` | — | Регистрация |
+| POST | `/api/v1/auth/login` | — | Вход |
+| POST | `/api/v1/auth/logout` | Session | Выход |
+| GET | `/api/v1/auth/verify` | Session | Проверка сессии |
+| GET | `/api/v1/api-keys` | Session | Список ключей |
+| POST | `/api/v1/api-keys` | Session | Создать ключ |
+| DELETE | `/api/v1/api-keys/{id}` | Session | Отозвать ключ |
 
-- `/login` — Вход
-- `/register` — Регистрация
-- `/dashboard` — Главная (баланс, быстрые действия)
-- `/keys` — Управление API-ключами
-- `/balance` — Пополнение баланса
-- `/history` — История событий
-- `/settings` — Настройки организации
+### Формат API Key
+
+```
+base64(key_id:secret)
+Пример: MTI6UVVoUFZrTktVVmhGVEZOYVIwNVZRa2xRVjBSTFVsbEc=
+```
+
+Декодируется в: `12:QUhPVkNKUVhETFNaR05VQklQV0RLUllG`
+
+## База данных
+
+**Таблицы (api_scan):**
+- `organizations` — организации
+- `users` — пользователи
+- `api_keys` — API ключи (bcrypt hash)
+- `sessions` — сессии
+- `account_events` — история событий
+
+## Тестовые данные
+
+После `make seed` доступен тестовый аккаунт:
+- **Email**: `test@example.com`
+- **Password**: `password`
 
 ## Конфигурация
 
-### Backend
+| Переменная | Описание | Значение по умолчанию |
+|------------|----------|----------------------|
+| `DATABASE_URL` | PostgreSQL connection string | `postgres://api_scan:api_scan_secret@localhost:5432/api_scan` |
+| `PORT` | Порт сервера | `8080` |
+| `BILLING_URL` | URL Billing Service | `http://billing:8080` |
+| `PAGES_DIR` | Путь к статическим файлам | `./pages` |
 
-| Переменная | Описание |
-|------------|----------|
-| `DATABASE_URL` | PostgreSQL |
-| `REDIS_URL` | Redis (для сессий) |
-| `YOOKASSA_SHOP_ID` | ID магазина ЮКассы |
-| `YOOKASSA_SECRET_KEY` | Секретный ключ ЮКассы |
-| `YOOKASSA_CALLBACK_URL` | URL для вебхуков |
+## Разработка
 
-### Frontend
+```bash
+# Запуск
+make run-service SERVICE=cabinet
 
-| Переменная | Описание |
-|------------|----------|
-| `REACT_APP_API_URL` | URL backend API |
+# Или напрямую
+go run ./cmd/server/main.go
+```
+
+## Swagger
+
+Документация API: http://localhost:8084/swagger/
+
+## Web UI
+
+Откройте http://localhost:8084/ в браузере.

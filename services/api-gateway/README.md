@@ -1,86 +1,86 @@
 # API Gateway
 
-Единая точка входа для всех API запросов. Обеспечивает аутентификацию, rate limiting и маршрутизацию на downstream сервисы.
+Единая точка входа для всех API запросов. Аутентификация, rate limiting, CORS, маршрутизация.
 
 ## Архитектура
 
 ```
-Client
-   │
-   ▼
-API Gateway (port 8080)
-   ├── Auth Middleware (X-Api-Key + bcrypt)
-   ├── Rate Limit Middleware (Redis, 10 RPS default)
-   └── Proxy
-       ├── /v1/recognize ──────▶ Orchestrator
-       ├── /v1/billing/* ──────▶ Billing Service
-       └── /webhooks/* ────────▶ Billing Webhook YooKassa (no auth)
+Client → CORS → Logging → Auth → RateLimit → Routing → Service
 ```
 
-## Формат API Key
+## Функциональность
 
-API Key имеет формат: `base64(key_id:secret)`
+### Аутентификация (API Keys)
+
+- Проверка заголовка `X-Api-Key`
+- Формат: `base64(key_id:secret)`
+- Хеширование: bcrypt
+- Redis cache для производительности
+
+### Rate Limiting
+
+- Sliding window algorithm
+- 10 RPS default per API key
+- Redis-based
+
+### CORS
+
+- Настроен для браузерных клиентов
+- Разрешены origins: `*` (для dev)
+- Поддерживаются credentials
+
+### Логирование
+
+Все запросы логируются:
+```
+[timestamp] METHOD /path - status (bytes) - duration - remote_addr
+```
 
 Пример:
-- Key ID: `123`
-- Secret: `sk_live_abc123xyz`
-- API Key: `MTIzOnNrX2xpdmVfYWJjMTIzeHl6` (base64)
-
-## Environment Variables
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `PORT` | 8080 | Порт сервера |
-| `DATABASE_URL` | postgres://... | URL main database (api_scan) |
-| `REDIS_ADDR` | localhost:6379 | Адрес Redis |
-| `ORCHESTRATOR_URL` | http://localhost:8083 | URL Orchestrator сервиса |
-| `BILLING_URL` | http://localhost:8081 | URL Billing сервиса |
-| `BILLING_WEBHOOK_URL` | http://localhost:8082 | URL Billing Webhook сервиса |
-
-## Endpoints
-
-### Public (no auth)
-- `GET /health` - Health check
-- `POST /webhooks/yookassa` - YooKassa webhook proxy
-
-### Protected (auth + rate limit)
-- `POST /v1/recognize` - OCR распознавание → Orchestrator
-- `GET /v1/billing/accounts/{id}/balance` → Billing
-- `POST /v1/billing/accounts/{id}/reserve` → Billing
-- `POST /v1/billing/transactions/{id}/commit` → Billing
-
-## Headers
-
-### Request
-- `X-Api-Key` - API ключ (base64)
-- `X-Request-ID` - ID запроса (auto-generated if missing)
-
-### Response
-- `X-RateLimit-Limit` - Лимит запросов (RPS)
-- `X-RateLimit-Remaining` - Оставшиеся запросы
-
-## Error Codes
-
-| Code | HTTP Status | Description |
-|------|-------------|-------------|
-| UNAUTHORIZED | 401 | Отсутствует или невалидный API ключ |
-| FORBIDDEN | 403 | Организация заблокирована или ключ отозван |
-| RATE_LIMITED | 429 | Превышен лимит запросов |
-| NOT_FOUND | 404 | Неизвестный endpoint |
-| SERVICE_UNAVAILABLE | 503 | Downstream сервис недоступен |
-
-## Запуск
-
-```bash
-# Локально
-go run ./services/api-gateway/cmd/server
-
-# Через Docker Compose
-docker-compose --profile gateway up -d
+```
+[2026-03-18 16:00:00] GET /v1/billing/accounts/1/balance - 200 (89 bytes) - 12ms - 172.20.0.1
 ```
 
-## Тесты
+## API Endpoints
+
+| Метод | Путь | Auth | Описание |
+|-------|------|------|----------|
+| GET | `/health` | — | Health check |
+| GET | `/swagger/` | — | Swagger UI |
+| ALL | `/v1/recognize` | API Key | Распознавание паспорта |
+| ALL | `/v1/billing/*` | API Key | Billing operations |
+| ALL | `/v1/...` | API Key | Прочие сервисы |
+| POST | `/webhooks/yookassa` | — | YooKassa webhooks |
+
+## Маршрутизация
+
+| Путь | Destination |
+|------|-------------|
+| `/v1/recognize` | Orchestrator |
+| `/v1/billing/*` | Billing Service |
+| `/webhooks/yookassa` | Billing Webhook |
+
+## Конфигурация
+
+| Переменная | Описание | Значение по умолчанию |
+|------------|----------|----------------------|
+| `PORT` | Порт сервера | `8080` |
+| `DATABASE_URL` | PostgreSQL (API keys) | — |
+| `REDIS_ADDR` | Redis host:port | `localhost:6379` |
+| `ORCHESTRATOR_URL` | URL Orchestrator | `http://localhost:8083` |
+| `BILLING_URL` | URL Billing | `http://localhost:8081` |
+| `BILLING_WEBHOOK_URL` | URL Billing Webhook | `http://localhost:8082` |
+
+## Разработка
 
 ```bash
-go test ./services/api-gateway/... -v
+# Запуск
+go run ./cmd/server/main.go
+
+# Тестирование
+curl http://localhost:8080/health
 ```
+
+## Swagger
+
+Документация API: http://localhost:8080/swagger/
