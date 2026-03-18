@@ -123,22 +123,51 @@ type FIO struct {
 // extractFIO извлекает ФИО из текста
 func (n *Normalizer) extractFIO(text string) FIO {
 	// Ищем паттерн: ФАМИЛИЯ ИМЯ ОТЧЕСТВО
-	// Обычно идут подряд в начале документа или после "ПОЛНОЕ ИМЯ"
+	// Поддерживаем: Иванов Иван Иванович, ИВАНОВ ИВАН ИВАНОВИЧ
 	
-	// Паттерн для русских ФИО (3 слова подряд с заглавной буквы)
-	fioPattern := regexp.MustCompile(`([А-ЯЁ][а-яё]+)\s+([А-ЯЁ][а-яё]+)\s+([А-ЯЁ][а-яё]+)`)
+	// Список слов, которые точно не являются ФИО
+	stopWords := map[string]bool{
+		"паспорт": true, "российской": true, "федерации": true,
+		"серия": true, "номер": true, "код": true, "выдан": true,
+		"отделом": true, "уфмс": true, "россии": true, "города": true,
+	}
 	
-	matches := fioPattern.FindStringSubmatch(text)
-	if len(matches) >= 4 {
-		return FIO{
-			LastName:   matches[1],
-			FirstName:  matches[2],
-			MiddleName: matches[3],
+	// Паттерн для русских ФИО (3 слова подряд из букв, минимум 2 буквы в каждом)
+	fioPattern := regexp.MustCompile(`([А-ЯЁа-яЁ]{2,})\s+([А-ЯЁа-яЁ]{2,})\s+([А-ЯЁа-яЁ]{2,})`)
+	
+	// Ищем все совпадения
+	allMatches := fioPattern.FindAllStringSubmatch(text, -1)
+	
+	for _, matches := range allMatches {
+		if len(matches) >= 4 {
+			w1, w2, w3 := strings.ToLower(matches[1]), strings.ToLower(matches[2]), strings.ToLower(matches[3])
+			// Проверяем, что ни одно слово не из stopWords
+			if !stopWords[w1] && !stopWords[w2] && !stopWords[w3] {
+				return FIO{
+					LastName:   n.capitalize(matches[1]),
+					FirstName:  n.capitalize(matches[2]),
+					MiddleName: n.capitalize(matches[3]),
+				}
+			}
 		}
 	}
 	
-	// Fallback: ищем отдельно
 	return FIO{}
+}
+
+// capitalize приводит строку к формату "Первая заглавная, остальные строчные"
+func (n *Normalizer) capitalize(s string) string {
+	if s == "" {
+		return ""
+	}
+	runes := []rune(s)
+	// Первая буква заглавная
+	runes[0] = unicode.ToUpper(runes[0])
+	// Остальные строчные
+	for i := 1; i < len(runes); i++ {
+		runes[i] = unicode.ToLower(runes[i])
+	}
+	return string(runes)
 }
 
 // extractDate извлекает дату (рождения или выдачи)
@@ -189,36 +218,73 @@ func (n *Normalizer) isValidDate(day, month, year string) bool {
 
 // extractSeriesAndNumber извлекает серию и номер паспорта
 func (n *Normalizer) extractSeriesAndNumber(text string) (series, number string, seriesConf, numberConf float64) {
+	// Приводим к нижнему регистру для поиска
+	lowerText := strings.ToLower(text)
+	
 	// Серия: 4 цифры (обычно в формате XX XX или XXXX)
 	// Номер: 6 цифр
 	
-	// Ищем серию и номер рядом
-	pattern := regexp.MustCompile(`(\d{2})\s?(\d{2})\s?(\d{6})`)
-	matches := pattern.FindStringSubmatch(text)
+	// Вариант 1: Ищем паттерн "СЕРИЯ XXXX НОМЕР XXXXXX" или "XXXX № XXXXXX"
+	// (?i) - case insensitive
+	pattern1 := regexp.MustCompile(`(?i)(?:серия\s*)?(\d{4})[\s№]*(?:номер|№)?\s*(\d{6})`)
+	matches := pattern1.FindStringSubmatch(text)
 	
-	if len(matches) >= 4 {
-		series = matches[1] + matches[2]
-		number = matches[3]
+	if len(matches) >= 3 {
+		series = matches[1]
+		number = matches[2]
 		seriesConf = 0.95
 		numberConf = 0.95
 		return
 	}
 	
-	// Отдельный поиск серии (4 цифры)
-	seriesPattern := regexp.MustCompile(`(?:серия|series)?[:\s]*(\d{4})`)
+	// Вариант 2: Ищем слитно XXXXXXXXXX (4 цифры серии + 6 цифр номера)  
+	pattern2 := regexp.MustCompile(`(\d{2})\s?(\d{2})\s?(\d{6})`)
+	matches2 := pattern2.FindStringSubmatch(text)
+	
+	if len(matches2) >= 4 {
+		// Проверяем, что это не дата (например 01.01.1990)
+		potentialSeries := matches2[1] + matches2[2]
+		potentialNumber := matches2[3]
+		// Серия паспорта не начинается с 01 (это скорее дата)
+		if potentialSeries != "0101" && potentialSeries != "3112" {
+			series = potentialSeries
+			number = potentialNumber
+			seriesConf = 0.95
+			numberConf = 0.95
+			return
+		}
+	}
+	
+	// Отдельный поиск серии (4 цифры после слова "серия")
+	seriesPattern := regexp.MustCompile(`(?i)(?:серия|series)[:\s]+(\d{4})`)
 	seriesMatches := seriesPattern.FindStringSubmatch(text)
 	if len(seriesMatches) >= 2 {
 		series = seriesMatches[1]
 		seriesConf = 0.8
 	}
 	
-	// Отдельный поиск номера (6 цифр)
-	numberPattern := regexp.MustCompile(`(?:номер|number|№)[:\s]*(\d{6})`)
+	// Отдельный поиск номера (6 цифр после слова "номер" или "№")
+	numberPattern := regexp.MustCompile(`(?i)(?:номер|number|№)[:\s]+(\d{6})`)
 	numberMatches := numberPattern.FindStringSubmatch(text)
 	if len(numberMatches) >= 2 {
 		number = numberMatches[1]
 		numberConf = 0.8
 	}
+	
+	// Если нашли только серию или только номер через отдельный поиск
+	// Пробуем найти недостающее просто по шаблону 4 или 6 цифр рядом
+	if series != "" && number == "" {
+		// Ищем 6 цифр рядом с серией
+		nearPattern := regexp.MustCompile(`(\d{4})\D+(\d{6})`)
+		nearMatches := nearPattern.FindStringSubmatch(text)
+		if len(nearMatches) >= 3 && nearMatches[1] == series {
+			number = nearMatches[2]
+			numberConf = 0.8
+		}
+	}
+	
+	// Убираем неиспользуемую переменную
+	_ = lowerText
 	
 	return
 }

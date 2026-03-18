@@ -31,6 +31,9 @@ CREATE TABLE api_keys (
     org_id INT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
     name VARCHAR(255) NOT NULL,
     key_hash VARCHAR(255) NOT NULL, -- bcrypt hash
+    status VARCHAR(20) DEFAULT 'active' CHECK (status IN ('active', 'revoked')),
+    rate_limit_rps INT DEFAULT 10,
+    expires_at TIMESTAMPTZ,
     last_used_at TIMESTAMPTZ,
     revoked_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ DEFAULT NOW(),

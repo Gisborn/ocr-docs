@@ -73,6 +73,77 @@ services:
     profiles:
       - mock
 
+  # Billing Service (API для внутренних вызовов)
+  billing:
+    build:
+      context: .
+      dockerfile: services/billing/Dockerfile
+    container_name: api-scan-billing
+    environment:
+      PORT: "8080"
+      DATABASE_URL: "postgres://billing:billing_secret@postgres-billing:5432/billing_db"
+      YOOKASSA_SHOP_ID: "${YOOKASSA_SHOP_ID:-}"
+      YOOKASSA_SECRET_KEY: "${YOOKASSA_SECRET_KEY:-}"
+    ports:
+      - "8081:8080"
+    depends_on:
+      postgres-billing:
+        condition: service_healthy
+    networks:
+      - api-scan-network
+    profiles:
+      - billing
+
+  # API Gateway (единая точка входа)
+  api-gateway:
+    build:
+      context: .
+      dockerfile: services/api-gateway/Dockerfile
+    container_name: api-scan-api-gateway
+    environment:
+      PORT: "8080"
+      DATABASE_URL: "postgres://api_scan:api_scan_secret@postgres:5432/api_scan"
+      REDIS_ADDR: "redis:6379"
+      ORCHESTRATOR_URL: "http://orchestrator:8080"
+      BILLING_URL: "http://billing:8080"
+      BILLING_WEBHOOK_URL: "http://billing-webhook-yookassa:8080"
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      billing:
+        condition: service_started
+      billing-webhook-yookassa:
+        condition: service_started
+    networks:
+      - api-scan-network
+    profiles:
+      - gateway
+
+  # Billing Webhook Service (публичные webhook'и от ЮКассы)
+  billing-webhook-yookassa:
+    build:
+      context: .
+      dockerfile: services/billing-webhook-yookassa/Dockerfile
+    container_name: api-scan-billing-webhook-yookassa
+    environment:
+      PORT: "8080"
+      DATABASE_URL: "postgres://billing:billing_secret@postgres-billing:5432/billing_db"
+      YOOKASSA_SECRET_KEY: "${YOOKASSA_SECRET_KEY:-}"
+      IP_WHITELIST: "185.71.76.0/27,185.71.77.0/27,77.75.153.0/25"
+    ports:
+      - "8082:8080"
+    depends_on:
+      postgres-billing:
+        condition: service_healthy
+    networks:
+      - api-scan-network
+    profiles:
+      - billing
+
 volumes:
   postgres_data:
     driver: local
