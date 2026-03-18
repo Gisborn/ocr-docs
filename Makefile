@@ -1,112 +1,101 @@
-# api-scan Makefile
+# API-Scan Makefile
 
-.PHONY: help build test lint migrate-up migrate-down
-
-# Переменные для БД
-DB_HOST ?= localhost
-DB_PORT ?= 5432
-DB_USER ?= api_scan
-DB_PASSWORD ?= api_scan_secret
-DB_NAME ?= api_scan
-DATABASE_URL ?= postgres://$(DB_USER):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/$(DB_NAME)?sslmode=disable
+.PHONY: help build test clean docker-up docker-down migrate
 
 # Default target
-help: ## Показать справку
-	@echo "Доступные команды:"
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}'
+help:
+	@echo "API-Scan Makefile commands:"
+	@echo "  make build        - Build all services"
+	@echo "  make test         - Run all tests"
+	@echo "  make docker-up    - Start all services with Docker Compose"
+	@echo "  make docker-down  - Stop all services"
+	@echo "  make migrate      - Run database migrations"
+	@echo "  make swagger      - Generate Swagger documentation"
+	@echo "  make clean        - Clean build artifacts"
 
-# === Development ===
+# Build all services
+build:
+	@echo "Building services..."
+	@go build -o bin/billing ./services/billing/cmd/server
+	@go build -o bin/billing-webhook ./services/billing-webhook-yookassa/cmd/server
+	@go build -o bin/api-gateway ./services/api-gateway/cmd/server
+	@go build -o bin/orchestrator ./services/orchestrator/cmd/server
+	@go build -o bin/cabinet ./services/cabinet/cmd/server
+	@echo "Build complete. Binaries in bin/"
 
-dev-up: ## Запустить локальные зависимости (PostgreSQL, Redis) и применить миграции
-	docker compose up -d
-	@echo "Ожидание запуска PostgreSQL..."
-	@sleep 3
-	@echo "Применение миграций..."
-	@make migrate-up
-	@echo "Проверка подключения..."
-	@make db-check
+# Run all tests
+test:
+	@echo "Running tests..."
+	@go test -v ./...
 
-dev-down: ## Остановить локальные зависимости
-	docker compose down
+# Run tests with coverage
+test-coverage:
+	@echo "Running tests with coverage..."
+	@go test -cover ./...
 
-dev-logs: ## Показать логи контейнеров
-	docker compose logs -f
+# Start infrastructure and services
+docker-up:
+	@echo "Starting infrastructure..."
+	@docker-compose up -d postgres postgres-billing redis
+	@echo "Waiting for databases to be ready..."
+	@sleep 5
+	@echo "Starting services..."
+	@docker-compose --profile billing --profile gateway --profile cabinet up -d
 
-dev-clean: ## Очистить данные БД и volumes
-	docker compose down -v
-	rm -rf postgres_data/
+# Stop all services
+docker-down:
+	@echo "Stopping all services..."
+	@docker-compose --profile billing --profile gateway --profile cabinet down
 
-# === Database ===
+# Run migrations
+migrate:
+	@echo "Running main database migrations..."
+	@cd migrations/main && goose up
+	@echo "Running billing database migrations..."
+	@cd ../billing && goose up
 
-db-check: ## Проверить подключение к PostgreSQL
-	@./scripts/test-db.sh
+# Rollback migrations
+migrate-down:
+	@echo "Rolling back main database..."
+	@cd migrations/main && goose down
+	@echo "Rolling back billing database..."
+	@cd ../billing && goose down
 
-migrate-up: ## Применить все миграции
-	@echo "Применение миграций..."
-	@cd migrations && goose postgres "$(DATABASE_URL)" up
+# Generate Swagger documentation
+swagger:
+	@echo "Generating Swagger for Billing Service..."
+	@cd services/billing && ~/go/bin/swag init -g cmd/server/main.go
+	@echo "Generating Swagger for API Gateway..."
+	@cd services/api-gateway && ~/go/bin/swag init -g cmd/server/main.go
+	@echo "Generating Swagger for Cabinet..."
+	@cd services/cabinet && ~/go/bin/swag init -g cmd/server/main.go
+	@echo "Swagger documentation generated."
 
-migrate-down: ## Откатить последнюю миграцию
-	@cd migrations && goose postgres "$(DATABASE_URL)" down
+# Clean build artifacts
+clean:
+	@echo "Cleaning..."
+	@rm -rf bin/
+	@go clean
 
-migrate-status: ## Статус миграций
-	@cd migrations && goose postgres "$(DATABASE_URL)" status
+# Development mode - start infrastructure only
+dev-infra:
+	@docker-compose up -d postgres postgres-billing redis
 
-migrate-reset: ## Откатить все миграции и применить заново
-	@cd migrations && goose postgres "$(DATABASE_URL)" reset
-	@cd migrations && goose postgres "$(DATABASE_URL)" up
+# Run specific service (usage: make run-service SERVICE=billing)
+run-service:
+	@if [ -z "$(SERVICE)" ]; then \
+		echo "Usage: make run-service SERVICE=<service-name>"; \
+		echo "Available services: billing, api-gateway, orchestrator, cabinet"; \
+		exit 1; \
+	fi
+	@go run ./services/$(SERVICE)/cmd/server/main.go
 
-migrate-create: ## Создать новую миграцию (make migrate-create name=add_users_table)
-	@cd migrations && goose create $(name) sql
+# Format code
+fmt:
+	@echo "Formatting code..."
+	@gofmt -w .
 
-# === Build ===
-
-build: ## Собрать все сервисы
-	@echo "Сборка orchestrator..."
-	@docker build -t api-scan/orchestrator:latest ./services/orchestrator
-	@echo "Сборка billing..."
-	@docker build -t api-scan/billing:latest ./services/billing
-	@echo "Сборка cabinet-backend..."
-	@docker build -t api-scan/cabinet-backend:latest ./services/cabinet/backend
-	@echo "Сборка завершена"
-
-# === Testing ===
-
-test: ## Запустить все тесты
-	@go test ./pkg/... -v
-
-test-integration: ## Запустить интеграционные тесты (требуется БД)
-	@go test ./tests/integration/... -v
-
-test-e2e: ## Запустить e2e тесты
-	@go test ./tests/e2e/... -v
-
-# === Linting ===
-
-lint: ## Запустить линтер
+# Run linter
+lint:
+	@echo "Running linter..."
 	@golangci-lint run ./...
-
-fmt: ## Форматировать код
-	@go fmt ./...
-
-# === Terraform ===
-
-terraform-init: ## Инициализировать Terraform
-	@cd infra/terraform && terraform init
-
-terraform-plan: ## План изменений инфраструктуры
-	@cd infra/terraform && terraform plan
-
-terraform-apply: ## Применить изменения инфраструктуры
-	@cd infra/terraform && terraform apply
-
-# === CI/CD ===
-
-ci-test: ## Команда для CI (тесты + линтер)
-	@make lint
-	@make test
-
-# === Clean ===
-
-clean: ## Очистить артефакты сборки
-	@rm -rf bin/ dist/
-	@docker system prune -f
