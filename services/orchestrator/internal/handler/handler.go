@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -45,12 +46,15 @@ func (h *Handler) Stats(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(stats)
 }
 
-// RecognizeRequest запрос на распознавание
+// RecognizeRequest запрос на распознавание (JSON API)
 type RecognizeRequest struct {
 	AccountID   int64  `json:"account_id"`
 	RequestID   string `json:"request_id"`
 	ImageBase64 string `json:"image_base64"`
 }
+
+// MaxUploadSize максимальный размер загружаемого файла (10 MB)
+const MaxUploadSize = 10 * 1024 * 1024
 
 // RecognizeResponse ответ на распознавание
 type RecognizeResponse struct {
@@ -62,55 +66,71 @@ type RecognizeResponse struct {
 }
 
 // Recognize обрабатывает запрос на распознавание паспорта
+// Поддерживает content-type:
+// - application/json: {"account_id": 123, "request_id": "...", "image_base64": "..."}
+// - multipart/form-data: file upload + idempotency-key header
 func (h *Handler) Recognize(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		http.Error(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
 		return
 	}
 
-	// Читаем тело запроса
-	body, err := io.ReadAll(r.Body)
+	// Получаем idempotency key из заголовка
+	idempotencyKey := r.Header.Get("Idempotency-Key")
+	if idempotencyKey == "" {
+		idempotencyKey = r.Header.Get("X-Request-ID")
+	}
+	if idempotencyKey == "" {
+		http.Error(w, `{"error":"idempotency key required","code":"MISSING_IDEMPOTENCY_KEY"}`, http.StatusBadRequest)
+		return
+	}
+
+	// Получаем account_id из контекста (установлен API Gateway) или из запроса
+	accountID := h.getAccountID(r)
+	if accountID == 0 {
+		http.Error(w, `{"error":"account_id required","code":"MISSING_ACCOUNT"}`, http.StatusBadRequest)
+		return
+	}
+
+	// Читаем изображение
+	imageData, err := h.readImage(r)
 	if err != nil {
-		http.Error(w, "Failed to read body", http.StatusBadRequest)
-		return
-	}
-	defer r.Body.Close()
-
-	// Парсим JSON
-	var req RecognizeRequest
-	if err := json.Unmarshal(body, &req); err != nil {
-		http.Error(w, "Invalid JSON", http.StatusBadRequest)
+		http.Error(w, fmt.Sprintf(`{"error":"%s","code":"INVALID_IMAGE"}`, err.Error()), http.StatusBadRequest)
 		return
 	}
 
-	// Валидация
-	if req.AccountID == 0 {
-		http.Error(w, "account_id required", http.StatusBadRequest)
+	// Проверяем размер
+	if len(imageData) > MaxUploadSize {
+		http.Error(w, `{"error":"file too large","code":"FILE_TOO_LARGE"}`, http.StatusRequestEntityTooLarge)
 		return
 	}
-	if req.RequestID == "" {
-		http.Error(w, "request_id required", http.StatusBadRequest)
-		return
-	}
-	if req.ImageBase64 == "" {
-		http.Error(w, "image_base64 required", http.StatusBadRequest)
-		return
-	}
-
-	// Декодируем base64 изображение (упрощенно - ожидаем raw bytes)
-	// В реальности здесь должна быть base64 декодирование
-	imageData := []byte(req.ImageBase64)
 
 	// Вызываем orchestrator
-	result, err := h.orchestrator.Process(r.Context(), req.AccountID, req.RequestID, imageData)
+	result, err := h.orchestrator.Process(r.Context(), accountID, idempotencyKey, imageData)
 	if err != nil {
 		switch err {
 		case service.ErrInsufficientBalance:
-			http.Error(w, "Insufficient balance", http.StatusPaymentRequired)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusPaymentRequired)
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"error":   "insufficient balance",
+				"code":    "PAYMENT_REQUIRED",
+				"balance": 0,
+			})
 		case service.ErrBillingUnavailable:
-			http.Error(w, "Billing service unavailable", http.StatusServiceUnavailable)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusServiceUnavailable)
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"error": "billing service unavailable",
+				"code":  "BILLING_UNAVAILABLE",
+			})
 		default:
-			http.Error(w, fmt.Sprintf("Processing failed: %v", err), http.StatusInternalServerError)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"error": fmt.Sprintf("processing failed: %v", err),
+				"code":  "PROCESSING_ERROR",
+			})
 		}
 		return
 	}
@@ -135,5 +155,63 @@ func (h *Handler) Recognize(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(resp)
+}
+
+// getAccountID получает account_id из контекста или query параметра
+func (h *Handler) getAccountID(r *http.Request) int64 {
+	// Проверяем контекст (установлен API Gateway)
+	if orgID := r.Context().Value("organization_id"); orgID != nil {
+		if id, ok := orgID.(int64); ok {
+			return id
+		}
+	}
+
+	// Fallback на query параметр (для тестирования)
+	// accountIDStr := r.URL.Query().Get("account_id")
+	// if accountIDStr != "" {
+	// 	if id, err := strconv.ParseInt(accountIDStr, 10, 64); err == nil {
+	// 		return id
+	// 	}
+	// }
+
+	return 0
+}
+
+// readImage читает изображение из запроса
+// Поддерживает: multipart/form-data (file поле) и application/json (base64)
+func (h *Handler) readImage(r *http.Request) ([]byte, error) {
+	contentType := r.Header.Get("Content-Type")
+
+	// Multipart form data
+	if len(contentType) > 19 && contentType[:19] == "multipart/form-data" {
+		r.ParseMultipartForm(MaxUploadSize)
+		file, _, err := r.FormFile("file")
+		if err != nil {
+			return nil, fmt.Errorf("file required")
+		}
+		defer file.Close()
+		return io.ReadAll(file)
+	}
+
+	// JSON with base64
+	if contentType == "application/json" {
+		var req RecognizeRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			return nil, fmt.Errorf("invalid json")
+		}
+		if req.ImageBase64 == "" {
+			return nil, fmt.Errorf("image_base64 required")
+		}
+		// Декодируем base64
+		return base64.StdEncoding.DecodeString(req.ImageBase64)
+	}
+
+	// Raw binary
+	if contentType == "application/octet-stream" || contentType == "image/jpeg" || contentType == "image/png" {
+		return io.ReadAll(r.Body)
+	}
+
+	return nil, fmt.Errorf("unsupported content-type: %s", contentType)
 }
