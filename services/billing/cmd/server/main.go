@@ -1,3 +1,21 @@
+// @title Billing Service API
+// @version 1.0
+// @description Billing Service API for OCR passport scanning service. Manages accounts, balances, subscriptions, and payments.
+// @termsOfService http://swagger.io/terms/
+
+// @contact.name API Support
+// @contact.email support@api-scan.example.com
+
+// @license.name Apache 2.0
+// @license.url http://www.apache.org/licenses/LICENSE-2.0.html
+
+// @host localhost:8081
+// @BasePath /
+
+// @securityDefinitions.apikey ApiKeyAuth
+// @in header
+// @name X-Api-Key
+
 package main
 
 import (
@@ -10,10 +28,12 @@ import (
 	"syscall"
 	"time"
 
+	_ "github.com/api-scan/api-scan/services/billing/docs"
 	"github.com/api-scan/api-scan/services/billing/internal/handler"
 	"github.com/api-scan/api-scan/services/billing/internal/repository"
 	"github.com/api-scan/api-scan/services/billing/internal/service"
 	"github.com/jackc/pgx/v5/pgxpool"
+	httpSwagger "github.com/swaggo/http-swagger"
 )
 
 func main() {
@@ -54,6 +74,9 @@ func main() {
 
 	// Настраиваем маршруты
 	mux := http.NewServeMux()
+	
+	// Swagger UI
+	mux.HandleFunc("/swagger/", httpSwagger.WrapHandler)
 	
 	// Health
 	mux.HandleFunc("/health", httpHandler.Health)

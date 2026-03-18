@@ -13,10 +13,10 @@ import (
 
 // Handler HTTP обработчики Billing Service
 type Handler struct {
-	billingService  *service.BillingService
-	subService      *service.SubscriptionService
-	paymentService  *service.PaymentService
-	yookassaSecret  string
+	billingService *service.BillingService
+	subService     *service.SubscriptionService
+	paymentService *service.PaymentService
+	yookassaSecret string
 }
 
 // NewHandler создает новый handler
@@ -29,7 +29,14 @@ func NewHandler(billing *service.BillingService, subs *service.SubscriptionServi
 	}
 }
 
-// Health проверка здоровья
+// Health godoc
+// @Summary Health check
+// @Description Check if the billing service is running
+// @Tags health
+// @Accept json
+// @Produce json
+// @Success 200 {object} SuccessResponse
+// @Router /health [get]
 func (h *Handler) Health(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -40,7 +47,15 @@ func (h *Handler) Health(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
 }
 
-// CreateAccount создает новый счет
+// CreateAccount godoc
+// @Summary Create new account
+// @Description Create a new billing account
+// @Tags accounts
+// @Accept json
+// @Produce json
+// @Success 201 {object} map[string]interface{} "Created account"
+// @Failure 500 {object} ErrorResponse
+// @Router /accounts [post]
 func (h *Handler) CreateAccount(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -58,7 +73,17 @@ func (h *Handler) CreateAccount(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(account)
 }
 
-// GetBalance возвращает баланс счета
+// GetBalance godoc
+// @Summary Get account balance
+// @Description Get real and prepaid balance for an account
+// @Tags accounts
+// @Accept json
+// @Produce json
+// @Param id path int true "Account ID"
+// @Success 200 {object} BalanceResponse
+// @Failure 400 {object} ErrorResponse
+// @Failure 500 {object} ErrorResponse
+// @Router /accounts/{id}/balance [get]
 func (h *Handler) GetBalance(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -81,7 +106,19 @@ func (h *Handler) GetBalance(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(balance)
 }
 
-// Reserve резервирует средства
+// Reserve godoc
+// @Summary Reserve funds
+// @Description Reserve funds for an operation (two-phase commit)
+// @Tags transactions
+// @Accept json
+// @Produce json
+// @Param id path int true "Account ID"
+// @Param request body ReserveRequest true "Reservation request"
+// @Success 200 {object} ReserveResponse
+// @Failure 400 {object} ErrorResponse
+// @Failure 402 {object} ErrorResponse "Insufficient balance"
+// @Failure 500 {object} ErrorResponse
+// @Router /accounts/{id}/reserve [post]
 func (h *Handler) Reserve(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -108,16 +145,16 @@ func (h *Handler) Reserve(w http.ResponseWriter, r *http.Request) {
 
 	resp, err := h.billingService.Reserve(r.Context(), accountID, &req)
 	if err != nil {
-		switch err {
-		case service.ErrAccountBlocked:
-			http.Error(w, "Account is blocked", http.StatusForbidden)
-		case service.ErrAccountArchived:
-			http.Error(w, "Account not found", http.StatusNotFound)
-		case service.ErrInsufficientBalance:
-			http.Error(w, "Insufficient balance", http.StatusPaymentRequired)
-		default:
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+		if err == service.ErrInsufficientBalance {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusPaymentRequired)
+			json.NewEncoder(w).Encode(ErrorResponse{
+				Error: "insufficient balance",
+				Code:  "PAYMENT_REQUIRED",
+			})
+			return
 		}
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -125,57 +162,83 @@ func (h *Handler) Reserve(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(resp)
 }
 
-// Commit фиксирует списание
+// Commit godoc
+// @Summary Commit transaction
+// @Description Commit a reserved transaction (two-phase commit)
+// @Tags transactions
+// @Accept json
+// @Produce json
+// @Param id path string true "Transaction ID (request_id)"
+// @Success 200 {object} SuccessResponse
+// @Failure 404 {object} ErrorResponse
+// @Failure 500 {object} ErrorResponse
+// @Router /transactions/{id}/commit [post]
 func (h *Handler) Commit(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
-	transactionID := extractTransactionID(r.URL.Path)
-	if transactionID == "" {
+	requestID := extractTransactionID(r.URL.Path)
+	if requestID == "" {
 		http.Error(w, "Invalid transaction ID", http.StatusBadRequest)
 		return
 	}
 
-	if err := h.billingService.Commit(r.Context(), transactionID); err != nil {
+	if err := h.billingService.Commit(r.Context(), requestID); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{"status": "committed"})
+	json.NewEncoder(w).Encode(SuccessResponse{Status: "committed"})
 }
 
-// Rollback откатывает списание
+// Rollback godoc
+// @Summary Rollback transaction
+// @Description Rollback a reserved transaction (two-phase commit)
+// @Tags transactions
+// @Accept json
+// @Produce json
+// @Param id path string true "Transaction ID (request_id)"
+// @Success 200 {object} SuccessResponse
+// @Failure 404 {object} ErrorResponse
+// @Failure 500 {object} ErrorResponse
+// @Router /transactions/{id}/rollback [post]
 func (h *Handler) Rollback(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
-	transactionID := extractTransactionID(r.URL.Path)
-	if transactionID == "" {
+	requestID := extractTransactionID(r.URL.Path)
+	if requestID == "" {
 		http.Error(w, "Invalid transaction ID", http.StatusBadRequest)
 		return
 	}
 
-	body, _ := io.ReadAll(r.Body)
-	var req struct {
-		Reason string `json:"reason"`
-	}
-	json.Unmarshal(body, &req)
-
-	if err := h.billingService.Rollback(r.Context(), transactionID, req.Reason); err != nil {
+	if err := h.billingService.Rollback(r.Context(), requestID, "client request"); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{"status": "rolled_back"})
+	json.NewEncoder(w).Encode(SuccessResponse{Status: "rolled back"})
 }
 
-// CreateSubscription создает подписку
+// CreateSubscription godoc
+// @Summary Create subscription
+// @Description Create a new subscription for an account
+// @Tags subscriptions
+// @Accept json
+// @Produce json
+// @Param id path int true "Account ID"
+// @Param request body CreateSubscriptionRequest true "Subscription request"
+// @Success 201 {object} CreateSubscriptionResponse
+// @Failure 400 {object} ErrorResponse
+// @Failure 402 {object} ErrorResponse "Insufficient balance"
+// @Failure 500 {object} ErrorResponse
+// @Router /accounts/{id}/subscriptions [post]
 func (h *Handler) CreateSubscription(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -203,7 +266,12 @@ func (h *Handler) CreateSubscription(w http.ResponseWriter, r *http.Request) {
 	resp, err := h.subService.CreateSubscription(r.Context(), accountID, &req)
 	if err != nil {
 		if err == service.ErrInsufficientBalance {
-			http.Error(w, "Insufficient balance", http.StatusPaymentRequired)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusPaymentRequired)
+			json.NewEncoder(w).Encode(ErrorResponse{
+				Error: "insufficient balance",
+				Code:  "PAYMENT_REQUIRED",
+			})
 			return
 		}
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -215,7 +283,19 @@ func (h *Handler) CreateSubscription(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(resp)
 }
 
-// Upgrade выполняет апгрейд подписки
+// Upgrade godoc
+// @Summary Upgrade subscription
+// @Description Upgrade subscription to a higher tier
+// @Tags subscriptions
+// @Accept json
+// @Produce json
+// @Param id path int true "Account ID"
+// @Param request body map[string]string true "Upgrade request {\"tariff_code\":\"pro\",\"payment_method\":\"balance\"}"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} ErrorResponse
+// @Failure 402 {object} ErrorResponse
+// @Failure 500 {object} ErrorResponse
+// @Router /accounts/{id}/subscriptions/upgrade [post]
 func (h *Handler) Upgrade(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -243,7 +323,12 @@ func (h *Handler) Upgrade(w http.ResponseWriter, r *http.Request) {
 	resp, err := h.subService.Upgrade(r.Context(), accountID, &req)
 	if err != nil {
 		if err == service.ErrInsufficientBalance {
-			http.Error(w, "Insufficient balance", http.StatusPaymentRequired)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusPaymentRequired)
+			json.NewEncoder(w).Encode(ErrorResponse{
+				Error: "insufficient balance",
+				Code:  "PAYMENT_REQUIRED",
+			})
 			return
 		}
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -254,7 +339,18 @@ func (h *Handler) Upgrade(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(resp)
 }
 
-// CreatePayment создает новый платеж (пополнение баланса)
+// CreatePayment godoc
+// @Summary Create payment
+// @Description Create a payment order for balance top-up
+// @Tags payments
+// @Accept json
+// @Produce json
+// @Param id path int true "Account ID"
+// @Param request body CreatePaymentRequest true "Payment request"
+// @Success 201 {object} CreatePaymentResponse
+// @Failure 400 {object} ErrorResponse
+// @Failure 500 {object} ErrorResponse
+// @Router /accounts/{id}/payments [post]
 func (h *Handler) CreatePayment(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -295,7 +391,17 @@ func (h *Handler) CreatePayment(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(resp)
 }
 
-// GetPayment возвращает информацию о платеже
+// GetPayment godoc
+// @Summary Get payment status
+// @Description Get payment order details
+// @Tags payments
+// @Accept json
+// @Produce json
+// @Param id path int true "Payment Order ID"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} ErrorResponse
+// @Failure 404 {object} ErrorResponse
+// @Router /payments/{id} [get]
 func (h *Handler) GetPayment(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)

@@ -1,0 +1,285 @@
+basePath: /
+definitions:
+  handler.ErrorResponse:
+    description: Error response with code and message
+    properties:
+      code:
+        example: UNAUTHORIZED
+        type: string
+      error:
+        example: invalid api key
+        type: string
+    type: object
+  handler.HealthResponse:
+    description: Health check response
+    properties:
+      status:
+        example: ok
+        type: string
+    type: object
+  handler.RecognizeResponse:
+    description: OCR recognition result with passport fields
+    properties:
+      confidences:
+        additionalProperties:
+          format: float64
+          type: number
+        type: object
+      document_type:
+        example: passport_rf
+        type: string
+      fields:
+        additionalProperties: true
+        type: object
+      provider:
+        example: yandex
+        type: string
+      request_id:
+        example: req_abc123
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact:
+    email: support@api-scan.example.com
+    name: API Support
+  description: API Gateway for OCR passport scanning service. Routes requests to Orchestrator,
+    Billing, and other services.
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+  termsOfService: http://swagger.io/terms/
+  title: API Gateway
+  version: "1.0"
+paths:
+  /health:
+    get:
+      consumes:
+      - application/json
+      description: Check if the API Gateway is running
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.HealthResponse'
+      summary: Health check
+      tags:
+      - health
+  /v1/billing/accounts/{id}/balance:
+    get:
+      consumes:
+      - application/json
+      description: Proxy requests to Orchestrator, Billing, or other services based
+        on path
+      parameters:
+      - description: API Key (X-Api-Key)
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Idempotency key for recognize requests
+        in: header
+        name: Idempotency-Key
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.RecognizeResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: Not found
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "429":
+          description: Rate limit exceeded
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "503":
+          description: Service unavailable
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      summary: Proxy request to downstream services
+      tags:
+      - proxy
+  /v1/billing/accounts/{id}/reserve:
+    post:
+      consumes:
+      - application/json
+      description: Proxy requests to Orchestrator, Billing, or other services based
+        on path
+      parameters:
+      - description: API Key (X-Api-Key)
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Idempotency key for recognize requests
+        in: header
+        name: Idempotency-Key
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.RecognizeResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: Not found
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "429":
+          description: Rate limit exceeded
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "503":
+          description: Service unavailable
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      summary: Proxy request to downstream services
+      tags:
+      - proxy
+  /v1/billing/transactions/{id}/commit:
+    post:
+      consumes:
+      - application/json
+      description: Proxy requests to Orchestrator, Billing, or other services based
+        on path
+      parameters:
+      - description: API Key (X-Api-Key)
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Idempotency key for recognize requests
+        in: header
+        name: Idempotency-Key
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.RecognizeResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: Not found
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "429":
+          description: Rate limit exceeded
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "503":
+          description: Service unavailable
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      summary: Proxy request to downstream services
+      tags:
+      - proxy
+  /v1/billing/transactions/{id}/rollback:
+    post:
+      consumes:
+      - application/json
+      description: Proxy requests to Orchestrator, Billing, or other services based
+        on path
+      parameters:
+      - description: API Key (X-Api-Key)
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Idempotency key for recognize requests
+        in: header
+        name: Idempotency-Key
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.RecognizeResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: Not found
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "429":
+          description: Rate limit exceeded
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "503":
+          description: Service unavailable
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      summary: Proxy request to downstream services
+      tags:
+      - proxy
+  /v1/recognize:
+    post:
+      consumes:
+      - application/json
+      description: Proxy requests to Orchestrator, Billing, or other services based
+        on path
+      parameters:
+      - description: API Key (X-Api-Key)
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Idempotency key for recognize requests
+        in: header
+        name: Idempotency-Key
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.RecognizeResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: Not found
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "429":
+          description: Rate limit exceeded
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "503":
+          description: Service unavailable
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      summary: Proxy request to downstream services
+      tags:
+      - proxy
+securityDefinitions:
+  ApiKeyAuth:
+    in: header
+    name: X-Api-Key
+    type: apiKey
+swagger: "2.0"

@@ -1,0 +1,446 @@
+basePath: /
+definitions:
+  handler.BalanceResponse:
+    description: Account balance with real and prepaid amounts
+    properties:
+      account_id:
+        example: 123
+        type: integer
+      prepaid_balance_rub:
+        example: 5000
+        type: number
+      real_balance_rub:
+        example: 15000.5
+        type: number
+    type: object
+  handler.CreatePaymentRequest:
+    description: Request to create a payment order
+    properties:
+      amount_rub:
+        example: 1000
+        type: number
+      description:
+        example: Balance top-up
+        type: string
+      return_url:
+        example: https://example.com/payment/success
+        type: string
+    type: object
+  handler.CreatePaymentResponse:
+    description: Payment order created successfully
+    properties:
+      amount_rub:
+        example: 1000
+        type: number
+      order_id:
+        example: 42
+        type: integer
+      payment_url:
+        example: https://yookassa.ru/payments/mock_42_123456
+        type: string
+      status:
+        example: pending
+        type: string
+    type: object
+  handler.CreateSubscriptionRequest:
+    description: Request to create a new subscription
+    properties:
+      payment_method:
+        example: balance
+        type: string
+      tariff_code:
+        example: pro
+        type: string
+    type: object
+  handler.CreateSubscriptionResponse:
+    description: Subscription created successfully
+    properties:
+      expires_at:
+        example: "2026-04-18T10:00:00Z"
+        type: string
+      id:
+        example: 1
+        type: integer
+      prepaid_remaining_rub:
+        example: 6000
+        type: number
+      started_at:
+        example: "2026-03-18T10:00:00Z"
+        type: string
+      status:
+        example: active
+        type: string
+      tariff_code:
+        example: pro
+        type: string
+    type: object
+  handler.ErrorResponse:
+    description: Error response with code and message
+    properties:
+      code:
+        example: PAYMENT_REQUIRED
+        type: string
+      error:
+        example: insufficient balance
+        type: string
+    type: object
+  handler.ReserveRequest:
+    description: Request to reserve funds for an operation
+    properties:
+      request_id:
+        example: req_abc123
+        type: string
+      service_id:
+        example: passport_rf
+        type: string
+    type: object
+  handler.ReserveResponse:
+    description: Reservation result
+    properties:
+      amount_rub:
+        example: 7
+        type: number
+      charge_type:
+        example: prepaid
+        type: string
+      reserved:
+        example: true
+        type: boolean
+      transaction_id:
+        example: req_abc123
+        type: string
+    type: object
+  handler.SuccessResponse:
+    description: Success response
+    properties:
+      status:
+        example: ok
+        type: string
+    type: object
+host: localhost:8081
+info:
+  contact:
+    email: support@api-scan.example.com
+    name: API Support
+  description: Billing Service API for OCR passport scanning service. Manages accounts,
+    balances, subscriptions, and payments.
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+  termsOfService: http://swagger.io/terms/
+  title: Billing Service API
+  version: "1.0"
+paths:
+  /accounts:
+    post:
+      consumes:
+      - application/json
+      description: Create a new billing account
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created account
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      summary: Create new account
+      tags:
+      - accounts
+  /accounts/{id}/balance:
+    get:
+      consumes:
+      - application/json
+      description: Get real and prepaid balance for an account
+      parameters:
+      - description: Account ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.BalanceResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      summary: Get account balance
+      tags:
+      - accounts
+  /accounts/{id}/payments:
+    post:
+      consumes:
+      - application/json
+      description: Create a payment order for balance top-up
+      parameters:
+      - description: Account ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Payment request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.CreatePaymentRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/handler.CreatePaymentResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      summary: Create payment
+      tags:
+      - payments
+  /accounts/{id}/reserve:
+    post:
+      consumes:
+      - application/json
+      description: Reserve funds for an operation (two-phase commit)
+      parameters:
+      - description: Account ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Reservation request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.ReserveRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.ReserveResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "402":
+          description: Insufficient balance
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      summary: Reserve funds
+      tags:
+      - transactions
+  /accounts/{id}/subscriptions:
+    post:
+      consumes:
+      - application/json
+      description: Create a new subscription for an account
+      parameters:
+      - description: Account ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Subscription request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.CreateSubscriptionRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/handler.CreateSubscriptionResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "402":
+          description: Insufficient balance
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      summary: Create subscription
+      tags:
+      - subscriptions
+  /accounts/{id}/subscriptions/upgrade:
+    post:
+      consumes:
+      - application/json
+      description: Upgrade subscription to a higher tier
+      parameters:
+      - description: Account ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Upgrade request {\
+        in: body
+        name: request
+        required: true
+        schema:
+          additionalProperties:
+            type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "402":
+          description: Payment Required
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      summary: Upgrade subscription
+      tags:
+      - subscriptions
+  /health:
+    get:
+      consumes:
+      - application/json
+      description: Check if the billing service is running
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.SuccessResponse'
+      summary: Health check
+      tags:
+      - health
+  /payments/{id}:
+    get:
+      consumes:
+      - application/json
+      description: Get payment order details
+      parameters:
+      - description: Payment Order ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      summary: Get payment status
+      tags:
+      - payments
+  /transactions/{id}/commit:
+    post:
+      consumes:
+      - application/json
+      description: Commit a reserved transaction (two-phase commit)
+      parameters:
+      - description: Transaction ID (request_id)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.SuccessResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      summary: Commit transaction
+      tags:
+      - transactions
+  /transactions/{id}/rollback:
+    post:
+      consumes:
+      - application/json
+      description: Rollback a reserved transaction (two-phase commit)
+      parameters:
+      - description: Transaction ID (request_id)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.SuccessResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      summary: Rollback transaction
+      tags:
+      - transactions
+securityDefinitions:
+  ApiKeyAuth:
+    in: header
+    name: X-Api-Key
+    type: apiKey
+swagger: "2.0"

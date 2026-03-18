@@ -1,3 +1,21 @@
+// @title API Gateway
+// @version 1.0
+// @description API Gateway for OCR passport scanning service. Routes requests to Orchestrator, Billing, and other services.
+// @termsOfService http://swagger.io/terms/
+
+// @contact.name API Support
+// @contact.email support@api-scan.example.com
+
+// @license.name Apache 2.0
+// @license.url http://www.apache.org/licenses/LICENSE-2.0.html
+
+// @host localhost:8080
+// @BasePath /
+
+// @securityDefinitions.apikey ApiKeyAuth
+// @in header
+// @name X-Api-Key
+
 package main
 
 import (
@@ -9,10 +27,12 @@ import (
 	"syscall"
 	"time"
 
+	_ "github.com/api-scan/api-scan/services/api-gateway/docs"
 	"github.com/api-scan/api-scan/services/api-gateway/internal/handler"
 	"github.com/api-scan/api-scan/services/api-gateway/internal/middleware"
 	"github.com/api-scan/api-scan/services/api-gateway/internal/repository"
 	"github.com/jackc/pgx/v5/pgxpool"
+	httpSwagger "github.com/swaggo/http-swagger"
 )
 
 func main() {
@@ -62,6 +82,9 @@ func main() {
 	// Настраиваем маршруты
 	mux := http.NewServeMux()
 
+	// Swagger UI
+	mux.HandleFunc("/swagger/", httpSwagger.WrapHandler)
+	
 	// Health check (без auth)
 	mux.HandleFunc("/health", gatewayHandler.Health)
 

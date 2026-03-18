@@ -51,7 +51,14 @@ func NewHandler(orchestratorURL, billingURL, cabinetURL string) (*Handler, error
 	}, nil
 }
 
-// Health проверка здоровья
+// Health godoc
+// @Summary Health check
+// @Description Check if the API Gateway is running
+// @Tags health
+// @Accept json
+// @Produce json
+// @Success 200 {object} HealthResponse
+// @Router /health [get]
 func (h *Handler) Health(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
@@ -62,7 +69,24 @@ func (h *Handler) Health(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprint(w, `{"status":"ok","service":"api-gateway"}`)
 }
 
-// ProxyHandler проксирует запросы на downstream сервисы
+// ProxyHandler godoc
+// @Summary Proxy request to downstream services
+// @Description Proxy requests to Orchestrator, Billing, or other services based on path
+// @Tags proxy
+// @Accept json
+// @Produce json
+// @Param Authorization header string true "API Key (X-Api-Key)"
+// @Param Idempotency-Key header string false "Idempotency key for recognize requests"
+// @Success 200 {object} RecognizeResponse
+// @Failure 401 {object} ErrorResponse "Unauthorized"
+// @Failure 404 {object} ErrorResponse "Not found"
+// @Failure 429 {object} ErrorResponse "Rate limit exceeded"
+// @Failure 503 {object} ErrorResponse "Service unavailable"
+// @Router /v1/recognize [post]
+// @Router /v1/billing/accounts/{id}/balance [get]
+// @Router /v1/billing/accounts/{id}/reserve [post]
+// @Router /v1/billing/transactions/{id}/commit [post]
+// @Router /v1/billing/transactions/{id}/rollback [post]
 func (h *Handler) ProxyHandler(w http.ResponseWriter, r *http.Request) {
 	// Определяем целевой сервис
 	target, path := h.resolveTarget(r.URL.Path)
