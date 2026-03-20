@@ -56,7 +56,11 @@ func (m *AuthMiddleware) Handler(next http.Handler) http.Handler {
 		ctx := r.Context()
 		ctx = context.WithValue(ctx, ContextKeyUserID, session.UserID)
 		ctx = context.WithValue(ctx, ContextKeyOrgID, session.OrgID)
-		ctx = context.WithValue(ctx, ContextKeyBillingAccountID, org.BillingAccountID)
+		if org.BillingAccountID != nil {
+			ctx = context.WithValue(ctx, ContextKeyBillingAccountID, *org.BillingAccountID)
+		} else if session.BillingAccountID != 0 {
+			ctx = context.WithValue(ctx, ContextKeyBillingAccountID, session.BillingAccountID)
+		}
 
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
@@ -72,6 +76,9 @@ func (m *AuthMiddleware) OptionalHandler(next http.Handler) http.Handler {
 				ctx := r.Context()
 				ctx = context.WithValue(ctx, ContextKeyUserID, session.UserID)
 				ctx = context.WithValue(ctx, ContextKeyOrgID, session.OrgID)
+				if session.BillingAccountID != 0 {
+					ctx = context.WithValue(ctx, ContextKeyBillingAccountID, session.BillingAccountID)
+				}
 				r = r.WithContext(ctx)
 			}
 		}

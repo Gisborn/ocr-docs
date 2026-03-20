@@ -152,15 +152,19 @@
         <!-- Dashboard -->
         <div id="dashboard" class="hidden">
             <!-- Navigation -->
-            <div class="nav">
-                <button class="btn" onclick="showTab('overview')">📊 Обзор</button>
-                <button class="btn" onclick="showTab('keys')">🔑 API Ключи</button>
-                <button class="btn" onclick="showTab('billing')">💰 Биллинг</button>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; gap: 10px;">
+                <div class="nav" style="margin: 0;">
+                    <button class="btn" onclick="showTab('overview')">📊 Обзор</button>
+                    <button class="btn" onclick="showTab('keys')">🔑 API Ключи</button>
+                    <button class="btn" onclick="showTab('billing')">💰 Биллинг</button>
+                </div>
+                <a href="#" onclick="logout(); return false;" style="color: #dc3545; text-decoration: none; font-weight: 500; padding: 8px 16px;">Выйти →</a>
             </div>
-            <button class="btn btn-danger" onclick="logout()" style="float: right; margin-top: -60px;">Выйти</button>
 
             <!-- Overview Tab -->
             <div id="overviewTab" class="tab-content">
+                <div id="overviewAlert"></div>
+                
                 <div class="grid">
                     <div class="stat-card">
                         <h3>Баланс (₽)</h3>
@@ -182,6 +186,16 @@
                     <p><strong>Название:</strong> <span id="orgName">-</span></p>
                     <p><strong>Email:</strong> <span id="orgEmail">-</span></p>
                     <p><strong>Тариф:</strong> <span id="orgTariff">-</span></p>
+                </div>
+
+                <div class="card" style="margin-top: 20px; background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white;">
+                    <h2>💰 Мок-пополнение (тест)</h2>
+                    <p>Симуляция оплаты через ЮКассу</p>
+                    <div style="display: flex; gap: 10px; margin-top: 15px;">
+                        <button class="btn" onclick="showMockPaymentModal(1000)" style="background: white; color: #28a745;">+1000₽</button>
+                        <button class="btn" onclick="showMockPaymentModal(5000)" style="background: white; color: #28a745;">+5000₽</button>
+                        <button class="btn" onclick="showMockPaymentModal(10000)" style="background: white; color: #28a745;">+10000₽</button>
+                    </div>
                 </div>
             </div>
 
@@ -368,9 +382,12 @@
                 const data = await res.json();
                 document.getElementById('orgId').textContent = data.org_id || '-';
                 document.getElementById('orgEmail').textContent = data.email || '-';
+                document.getElementById('orgName').textContent = data.org_name || '-';
                 
-                // Try to get org details from API keys endpoint
-                billingAccountId = data.billing_account_id || 1;
+                // Use billing_account_id from response, fallback to org_id
+                billingAccountId = data.billing_account_id || data.org_id || 1;
+                
+                console.log('Org data loaded:', { org_id: data.org_id, org_name: data.org_name, billing_account_id: data.billing_account_id });
             } catch (e) {
                 console.error('Error loading org data:', e);
             }
@@ -379,23 +396,17 @@
         async function loadBalance() {
             if (!billingAccountId) return;
             
-            // Получаем сохраненный API ключ
-            const apiKey = localStorage.getItem('apiKey');
-            
-            if (!apiKey) {
-                document.getElementById('realBalance').textContent = '?';
-                document.getElementById('prepaidBalance').textContent = '?';
-                document.getElementById('orgTariff').textContent = 'Создайте API ключ';
-                return;
-            }
-            
             try {
-                const res = await fetch(`${BILLING_API}/v1/billing/accounts/${billingAccountId}/balance`, {
-                    headers: { 'X-Api-Key': apiKey }
+                // Используем Cabinet API для получения баланса (через service token)
+                const res = await fetch(`${API_BASE}/api/v1/balance`, {
+                    headers: { 'Authorization': `Bearer ${sessionToken}` }
                 });
                 
                 if (!res.ok) {
-                    console.error('Balance request failed:', await res.text());
+                    const errorText = await res.text();
+                    console.error('Balance request failed:', errorText);
+                    document.getElementById('realBalance').textContent = '?';
+                    document.getElementById('prepaidBalance').textContent = '?';
                     return;
                 }
                 
@@ -405,6 +416,8 @@
                 document.getElementById('orgTariff').textContent = 'Active';
             } catch (e) {
                 console.error('Error loading balance:', e);
+                document.getElementById('realBalance').textContent = '?';
+                document.getElementById('prepaidBalance').textContent = '?';
             }
         }
 
@@ -489,6 +502,25 @@
                 
                 if (res.ok) {
                     showAlert('keyAlert', 'success', 'Ключ отозван');
+                    
+                    // Проверяем, не является ли отозванный ключ текущим
+                    // Извлекаем key_id из сохраненного ключа
+                    const currentKey = localStorage.getItem('apiKey');
+                    if (currentKey) {
+                        try {
+                            const decoded = atob(currentKey);
+                            const currentKeyId = decoded.split(':')[0];
+                            if (currentKeyId === String(keyId)) {
+                                localStorage.removeItem('apiKey');
+                                showAlert('keyAlert', 'info', 'Отозванный ключ удалён из использования');
+                                document.getElementById('realBalance').textContent = '?';
+                                document.getElementById('prepaidBalance').textContent = '?';
+                            }
+                        } catch (e) {
+                            console.error('Error checking current key:', e);
+                        }
+                    }
+                    
                     loadApiKeys();
                 } else {
                     showAlert('keyAlert', 'error', 'Ошибка отзыва ключа');
@@ -541,6 +573,127 @@
             el.className = `alert alert-${type}`;
             el.textContent = message;
         }
+
+        // Mock Payment Functions
+        let currentMockPayment = null;
+
+        function showMockPaymentModal(amount) {
+            currentMockPayment = { amount };
+            document.getElementById('mockPaymentAmount').textContent = amount;
+            document.getElementById('mockPaymentModal').classList.remove('hidden');
+        }
+
+        function hideMockPaymentModal() {
+            document.getElementById('mockPaymentModal').classList.add('hidden');
+            currentMockPayment = null;
+        }
+
+        async function createMockPayment() {
+            if (!currentMockPayment) return;
+            
+            try {
+                const res = await fetch(`${API_BASE}/api/v1/payments/mock`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${sessionToken}`
+                    },
+                    body: JSON.stringify({ amount_rub: currentMockPayment.amount })
+                });
+                
+                const data = await res.json();
+                
+                if (res.ok) {
+                    currentMockPayment.id = data.payment_id;
+                    document.getElementById('mockPaymentStep1').classList.add('hidden');
+                    document.getElementById('mockPaymentStep2').classList.remove('hidden');
+                    document.getElementById('createdPaymentId').textContent = data.payment_id;
+                    document.getElementById('createdPaymentAmount').textContent = data.amount_rub;
+                } else {
+                    alert('Ошибка создания платежа: ' + data.error);
+                }
+            } catch (e) {
+                alert('Ошибка соединения');
+            }
+        }
+
+        async function confirmMockPayment() {
+            if (!currentMockPayment || !currentMockPayment.id) return;
+            
+            try {
+                const res = await fetch(`${API_BASE}/api/v1/payments/${currentMockPayment.id}/confirm`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${sessionToken}`
+                    }
+                });
+                
+                const data = await res.json();
+                
+                if (res.ok) {
+                    document.getElementById('mockPaymentStep2').classList.add('hidden');
+                    document.getElementById('mockPaymentStep3').classList.remove('hidden');
+                    document.getElementById('completedPaymentId').textContent = currentMockPayment.id;
+                    document.getElementById('completedPaymentAmount').textContent = currentMockPayment.amount;
+                    
+                    // Обновляем баланс
+                    setTimeout(() => {
+                        loadBalance();
+                        hideMockPaymentModal();
+                        // Сбрасываем форму
+                        setTimeout(() => {
+                            document.getElementById('mockPaymentStep1').classList.remove('hidden');
+                            document.getElementById('mockPaymentStep2').classList.add('hidden');
+                            document.getElementById('mockPaymentStep3').classList.add('hidden');
+                        }, 500);
+                    }, 1500);
+                } else {
+                    alert('Ошибка подтверждения: ' + data.error);
+                }
+            } catch (e) {
+                alert('Ошибка соединения');
+            }
+        }
     </script>
+
+    <!-- Mock Payment Modal -->
+    <div id="mockPaymentModal" class="hidden" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; display: flex; align-items: center; justify-content: center;">
+        <div style="background: white; border-radius: 10px; padding: 30px; max-width: 500px; width: 90%; box-shadow: 0 10px 40px rgba(0,0,0,0.3);">
+            <!-- Step 1: Create Payment -->
+            <div id="mockPaymentStep1">
+                <h2>💳 Мок-пополнение баланса</h2>
+                <p style="margin: 20px 0;">Сумма пополнения: <strong id="mockPaymentAmount">1000</strong>₽</p>
+                <p style="color: #666; font-size: 14px;">В реальном приложении здесь была бы форма ЮКассы. Сейчас это симуляция.</p>
+                <div style="margin-top: 30px; display: flex; gap: 10px; justify-content: flex-end;">
+                    <button class="btn btn-secondary" onclick="hideMockPaymentModal()">Отмена</button>
+                    <button class="btn" onclick="createMockPayment()">Создать платёж</button>
+                </div>
+            </div>
+
+            <!-- Step 2: Payment Form -->
+            <div id="mockPaymentStep2" class="hidden">
+                <h2>📝 Форма оплаты ЮКасса (мок)</h2>
+                <div style="background: #f8f9fa; padding: 15px; border-radius: 5px; margin: 20px 0;">
+                    <p><strong>ID платежа:</strong> <span id="createdPaymentId" style="font-family: monospace;"></span></p>
+                    <p><strong>Сумма:</strong> <span id="createdPaymentAmount"></span>₽</p>
+                </div>
+                <p style="color: #666; font-size: 14px;">Нажмите "Оплатить" чтобы симулировать успешную оплату и webhook от ЮКассы.</p>
+                <div style="margin-top: 30px; display: flex; gap: 10px; justify-content: flex-end;">
+                    <button class="btn btn-secondary" onclick="hideMockPaymentModal()">Отмена</button>
+                    <button class="btn" style="background: #28a745;" onclick="confirmMockPayment()">✓ Оплатить</button>
+                </div>
+            </div>
+
+            <!-- Step 3: Success -->
+            <div id="mockPaymentStep3" class="hidden">
+                <h2>✅ Платеж успешен!</h2>
+                <div style="text-align: center; padding: 20px;">
+                    <div style="font-size: 48px; margin-bottom: 20px;">🎉</div>
+                    <p>Платёж <span id="completedPaymentId" style="font-family: monospace;"></span> подтвержден.</p>
+                    <p>На счёт зачислено <strong id="completedPaymentAmount"></strong>₽</p>
+                </div>
+            </div>
+        </div>
+    </div>
 </body>
 </html>

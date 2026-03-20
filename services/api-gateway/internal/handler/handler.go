@@ -158,19 +158,27 @@ func (h *Handler) resolveTarget(path string) (*url.URL, string) {
 			return u, path
 		}
 
-	// Billing
-	case strings.HasPrefix(path, "/v1/billing/") || strings.HasPrefix(path, "/accounts/"):
+	// Billing (поддерживаем и /v1/billing/ и /api/v1/billing/)
+	case strings.HasPrefix(path, "/v1/billing/") || strings.HasPrefix(path, "/api/v1/billing/") || strings.HasPrefix(path, "/accounts/"):
 		if u, ok := h.routes["billing"]; ok {
-			// Преобразуем /v1/billing/accounts -> /accounts
-			newPath := strings.TrimPrefix(path, "/v1/billing")
+			// Преобразуем /api/v1/billing/accounts -> /accounts
+			newPath := strings.TrimPrefix(path, "/api/v1/billing")
+			if strings.HasPrefix(path, "/v1/billing/") {
+				newPath = strings.TrimPrefix(path, "/v1/billing")
+			}
 			return u, newPath
 		}
 
-	// Cabinet (личный кабинет)
-	case strings.HasPrefix(path, "/v1/cabinet/"):
+	// Cabinet (личный кабинет и auth)
+	case strings.HasPrefix(path, "/api/v1/cabinet/") || strings.HasPrefix(path, "/api/v1/auth/") || strings.HasPrefix(path, "/api/v1/mock-payments") || strings.HasPrefix(path, "/api/v1/payments/") || strings.HasPrefix(path, "/api/v1/api-keys") || path == "/api/v1/balance":
 		if u, ok := h.routes["cabinet"]; ok {
-			newPath := strings.TrimPrefix(path, "/v1/cabinet")
-			return u, newPath
+			// Для cabinet - /api/v1/cabinet/* -> /*
+			// Для auth - /api/v1/auth/* -> /api/v1/auth/*
+			// Для mock-payments - /api/v1/mock-payments/* -> /api/v1/mock-payments/*
+			if strings.HasPrefix(path, "/api/v1/cabinet/") {
+				return u, strings.TrimPrefix(path, "/api/v1/cabinet")
+			}
+			return u, path
 		}
 
 	// Webhooks - проксируем на billing-webhook-yookassa

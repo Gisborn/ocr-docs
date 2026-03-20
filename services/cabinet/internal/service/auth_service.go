@@ -194,12 +194,19 @@ func (s *AuthService) Login(ctx context.Context, req *LoginRequest) (*LoginRespo
 		return nil, fmt.Errorf("session creation failed")
 	}
 
+	// Получаем billing_account_id из организации
+	var billingAccountID int64
+	if org.BillingAccountID != nil {
+		billingAccountID = *org.BillingAccountID
+	}
+	
 	session := &models.Session{
-		ID:        generateID(),
-		UserID:    user.ID,
-		OrgID:     org.ID,
-		Token:     sessionToken,
-		ExpiresAt: time.Now().Add(24 * time.Hour),
+		ID:               generateID(),
+		UserID:           user.ID,
+		OrgID:            org.ID,
+		BillingAccountID: billingAccountID,
+		Token:            sessionToken,
+		ExpiresAt:        time.Now().Add(24 * time.Hour),
 	}
 
 	if err := s.repo.CreateSession(ctx, session); err != nil {

@@ -279,9 +279,9 @@ func (r *PostgresRepository) UpdateAPIKeyHash(ctx context.Context, keyID int64, 
 // CreateSession создает сессию
 func (r *PostgresRepository) CreateSession(ctx context.Context, session *models.Session) error {
 	_, err := r.pool.Exec(ctx,
-		`INSERT INTO sessions (id, user_id, org_id, token, expires_at, created_at)
-		 VALUES ($1, $2, $3, $4, $5, NOW())`,
-		session.ID, session.UserID, session.OrgID, session.Token, session.ExpiresAt,
+		`INSERT INTO sessions (id, user_id, org_id, billing_account_id, token, expires_at, created_at)
+		 VALUES ($1, $2, $3, $4, $5, $6, NOW())`,
+		session.ID, session.UserID, session.OrgID, session.BillingAccountID, session.Token, session.ExpiresAt,
 	)
 	return err
 }
@@ -290,10 +290,10 @@ func (r *PostgresRepository) CreateSession(ctx context.Context, session *models.
 func (r *PostgresRepository) GetSessionByToken(ctx context.Context, token string) (*models.Session, error) {
 	session := &models.Session{}
 	err := r.pool.QueryRow(ctx,
-		`SELECT id, user_id, org_id, token, expires_at, created_at
+		`SELECT id, user_id, org_id, billing_account_id, token, expires_at, created_at
 		 FROM sessions WHERE token = $1 AND expires_at > NOW()`,
 		token,
-	).Scan(&session.ID, &session.UserID, &session.OrgID, &session.Token, &session.ExpiresAt, &session.CreatedAt)
+	).Scan(&session.ID, &session.UserID, &session.OrgID, &session.BillingAccountID, &session.Token, &session.ExpiresAt, &session.CreatedAt)
 	
 	if err != nil {
 		if err == pgx.ErrNoRows {

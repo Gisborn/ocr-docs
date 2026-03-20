@@ -226,6 +226,46 @@ func (h *Handler) Rollback(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(SuccessResponse{Status: "rolled back"})
 }
 
+// TopupBalance пополняет баланс (для мок-платежей)
+func (h *Handler) TopupBalance(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	accountID, err := extractAccountID(r.URL.Path)
+	if err != nil {
+		http.Error(w, "Invalid account ID", http.StatusBadRequest)
+		return
+	}
+
+	var req struct {
+		AmountRub float64 `json:"amount_rub"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid JSON", http.StatusBadRequest)
+		return
+	}
+
+	if req.AmountRub <= 0 {
+		http.Error(w, "Amount must be positive", http.StatusBadRequest)
+		return
+	}
+
+	// Создаем billing event для пополнения
+	if err := h.subService.CreateTopupEvent(r.Context(), accountID, req.AmountRub); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"status":      "success",
+		"amount_rub":  req.AmountRub,
+		"message":     "Баланс успешно пополнен",
+	})
+}
+
 // CreateSubscription godoc
 // @Summary Create subscription
 // @Description Create a new subscription for an account
@@ -314,13 +354,13 @@ func (h *Handler) Upgrade(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req service.UpgradeRequest
+	var req service.UpgradeSubscriptionRequest
 	if err := json.Unmarshal(body, &req); err != nil {
 		http.Error(w, "Invalid JSON", http.StatusBadRequest)
 		return
 	}
 
-	resp, err := h.subService.Upgrade(r.Context(), accountID, &req)
+	resp, err := h.subService.UpgradeSubscription(r.Context(), accountID, &req)
 	if err != nil {
 		if err == service.ErrInsufficientBalance {
 			w.Header().Set("Content-Type", "application/json")

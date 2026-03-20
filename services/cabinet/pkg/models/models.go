@@ -54,12 +54,13 @@ type AccountEvent struct {
 
 // Session представляет сессию пользователя
 type Session struct {
-	ID        string    `json:"id" db:"id"`
-	UserID    int64     `json:"user_id" db:"user_id"`
-	OrgID     int64     `json:"org_id" db:"org_id"`
-	Token     string    `json:"-" db:"token"`
-	ExpiresAt time.Time `json:"expires_at" db:"expires_at"`
-	CreatedAt time.Time `json:"created_at" db:"created_at"`
+	ID               string    `json:"id" db:"id"`
+	UserID           int64     `json:"user_id" db:"user_id"`
+	OrgID            int64     `json:"org_id" db:"org_id"`
+	BillingAccountID int64     `json:"billing_account_id" db:"billing_account_id"`
+	Token            string    `json:"-" db:"token"`
+	ExpiresAt        time.Time `json:"expires_at" db:"expires_at"`
+	CreatedAt        time.Time `json:"created_at" db:"created_at"`
 }
 
 // Valid проверяет, активна ли организация

@@ -41,6 +41,7 @@ func main() {
 	port := getEnv("PORT", "8080")
 	databaseURL := getEnv("DATABASE_URL", "postgres://billing:billing_secret@localhost:5433/billing_db")
 	yookassaSecret := getEnv("YOOKASSA_SECRET_KEY", "")
+	serviceToken := getEnv("BILLING_SERVICE_TOKEN", "")
 
 	// Подключаемся к БД
 	pool, err := pgxpool.New(context.Background(), databaseURL)
@@ -78,6 +79,17 @@ func main() {
 	// Swagger UI
 	mux.HandleFunc("/swagger/", httpSwagger.WrapHandler)
 	
+	// Internal middleware для проверки service token
+	internalOnly := func(next http.HandlerFunc) http.HandlerFunc {
+		return func(w http.ResponseWriter, r *http.Request) {
+			if serviceToken != "" && r.Header.Get("X-Service-Token") != serviceToken {
+				http.Error(w, `{"error":"unauthorized","code":"UNAUTHORIZED"}`, http.StatusUnauthorized)
+				return
+			}
+			next(w, r)
+		}
+	}
+
 	// Health
 	mux.HandleFunc("/health", httpHandler.Health)
 	
@@ -103,6 +115,8 @@ func main() {
 			}
 		} else if strings.Contains(path, "/balance") {
 			httpHandler.GetBalance(w, r)
+		} else if strings.Contains(path, "/topup") {
+			internalOnly(httpHandler.TopupBalance)(w, r)
 		} else if strings.Contains(path, "/payments") {
 			if r.Method == http.MethodPost {
 				httpHandler.CreatePayment(w, r)

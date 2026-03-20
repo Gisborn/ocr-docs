@@ -12,15 +12,17 @@ import (
 
 // Handler HTTP обработчики Cabinet Service
 type Handler struct {
-	authService   *service.AuthService
-	apiKeyService *service.APIKeyService
+	authService    *service.AuthService
+	apiKeyService  *service.APIKeyService
+	paymentService *service.PaymentService
 }
 
 // NewHandler создает новый handler
-func NewHandler(auth *service.AuthService, apiKey *service.APIKeyService) *Handler {
+func NewHandler(auth *service.AuthService, apiKey *service.APIKeyService, payment *service.PaymentService) *Handler {
 	return &Handler{
-		authService:   auth,
-		apiKeyService: apiKey,
+		authService:    auth,
+		apiKeyService:  apiKey,
+		paymentService: payment,
 	}
 }
 
@@ -133,14 +135,13 @@ func (h *Handler) Verify(w http.ResponseWriter, r *http.Request) {
 
 	orgID := middleware.GetOrgID(r.Context())
 	userID := middleware.GetUserID(r.Context())
-	billingAccountID := middleware.GetBillingAccountID(r.Context())
 
 	if orgID == 0 || userID == 0 {
 		http.Error(w, `{"error":"unauthorized"}`, http.StatusUnauthorized)
 		return
 	}
 
-	// Get org details
+	// Get org details (fresh from DB, not cached)
 	org, err := h.authService.GetOrgByID(r.Context(), orgID)
 	if err != nil {
 		http.Error(w, `{"error":"organization not found"}`, http.StatusNotFound)
@@ -151,7 +152,7 @@ func (h *Handler) Verify(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"org_id":             orgID,
 		"user_id":            userID,
-		"billing_account_id": billingAccountID,
+		"billing_account_id": org.BillingAccountID,
 		"email":              org.Email,
 		"org_name":           org.Name,
 	})
@@ -293,7 +294,7 @@ func (h *Handler) RevokeAPIKey(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Извлекаем ID из пути
-	keyID, err := extractIDFromPath(r.URL.Path, "/api-keys/")
+	keyID, err := extractIDFromPath(r.URL.Path, "/api/v1/api-keys/")
 	if err != nil {
 		http.Error(w, `{"error":"invalid key id"}`, http.StatusBadRequest)
 		return
@@ -310,17 +311,91 @@ func (h *Handler) RevokeAPIKey(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]string{"status": "revoked"})
 }
 
+// CreateMockPayment создает мок-платеж для пополнения баланса
+func (h *Handler) CreateMockPayment(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
+		return
+	}
+
+	orgID := middleware.GetOrgID(r.Context())
+	accountID := middleware.GetBillingAccountID(r.Context())
+
+	if orgID == 0 {
+		http.Error(w, `{"error":"unauthorized"}`, http.StatusUnauthorized)
+		return
+	}
+
+	var req service.MockPaymentRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, `{"error":"invalid json"}`, http.StatusBadRequest)
+		return
+	}
+
+	if req.AmountRub <= 0 {
+		http.Error(w, `{"error":"amount must be positive"}`, http.StatusBadRequest)
+		return
+	}
+
+	resp, err := h.paymentService.CreateMockPayment(r.Context(), orgID, accountID, &req)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(resp)
+}
+
+// ConfirmMockPayment подтверждает мок-платеж (симуляция webhook)
+func (h *Handler) ConfirmMockPayment(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Извлекаем payment_id из пути
+	paymentID := extractPaymentIDFromPath(r.URL.Path)
+	if paymentID == "" {
+		http.Error(w, `{"error":"invalid payment id"}`, http.StatusBadRequest)
+		return
+	}
+
+	err := h.paymentService.ConfirmMockPayment(r.Context(), paymentID)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{
+		"status":      "completed",
+		"payment_id":  paymentID,
+		"message":     "Платеж успешно подтвержден. Баланс пополнен.",
+	})
+}
+
 // Вспомогательные функции
 
 func extractToken(r *http.Request) string {
+	// Пробуем заголовок Authorization
 	auth := r.Header.Get("Authorization")
 	if strings.HasPrefix(auth, "Bearer ") {
 		return strings.TrimPrefix(auth, "Bearer ")
 	}
+
+	// Пробуем cookie
 	if cookie, err := r.Cookie("session"); err == nil {
 		return cookie.Value
 	}
-	return ""
+
+	// Пробуем query параметр (для разработки)
+	return r.URL.Query().Get("token")
 }
 
 func extractIDFromPath(path, prefix string) (int64, error) {
@@ -332,4 +407,44 @@ func extractIDFromPath(path, prefix string) (int64, error) {
 	// Убираем trailing slash
 	idStr = strings.TrimSuffix(idStr, "/")
 	return strconv.ParseInt(idStr, 10, 64)
+}
+
+func extractPaymentIDFromPath(path string) string {
+	// Путь вида /api/v1/payments/mock_123456_1/confirm
+	parts := strings.Split(path, "/")
+	for i, part := range parts {
+		if strings.HasPrefix(part, "mock_") && i < len(parts)-1 && parts[i+1] == "confirm" {
+			return part
+		}
+	}
+	// Пробуем другой вариант: /api/v1/payments/mock_123456/confirm
+	for i, part := range parts {
+		if i > 0 && parts[i-1] == "payments" && strings.HasPrefix(part, "mock_") {
+			return part
+		}
+	}
+	return ""
+}
+
+// GetBalance возвращает баланс организации (через Billing Service)
+func (h *Handler) GetBalance(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
+		return
+	}
+
+	accountID := middleware.GetBillingAccountID(r.Context())
+	if accountID == 0 {
+		http.Error(w, `{"error":"billing account not found"}`, http.StatusBadRequest)
+		return
+	}
+
+	balance, err := h.paymentService.GetBalance(r.Context(), accountID)
+	if err != nil {
+		http.Error(w, `{"error":"failed to get balance"}`, http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(balance)
 }

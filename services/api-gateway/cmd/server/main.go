@@ -46,7 +46,7 @@ func main() {
 	orchestratorURL := getEnv("ORCHESTRATOR_URL", "http://localhost:8083")
 	billingURL := getEnv("BILLING_URL", "http://localhost:8081")
 	billingWebhookURL := getEnv("BILLING_WEBHOOK_URL", "http://localhost:8082")
-	// cabinetURL := getEnv("CABINET_URL", "http://localhost:8084") // Stage 6
+	cabinetURL := getEnv("CABINET_URL", "http://localhost:8084")
 
 	// Подключаемся к БД (main database для API ключей)
 	pool, err := pgxpool.New(context.Background(), databaseURL)
@@ -72,7 +72,7 @@ func main() {
 	rateLimitMiddleware := middleware.NewRateLimitMiddleware(rateLimiter, 10) // default 10 RPS
 
 	// Создаем handler
-	gatewayHandler, err := handler.NewHandler(orchestratorURL, billingURL, "")
+	gatewayHandler, err := handler.NewHandler(orchestratorURL, billingURL, cabinetURL)
 	if err != nil {
 		log.Fatalf("Failed to create handler: %v", err)
 	}
@@ -98,7 +98,7 @@ func main() {
 			http.HandlerFunc(gatewayHandler.ProxyHandler),
 		),
 	)
-	mux.Handle("/v1/", apiHandler)
+	mux.Handle("/api/v1/", apiHandler)
 
 	// Оборачиваем в CORS и logging middleware
 	corsMux := middleware.CORS(mux)

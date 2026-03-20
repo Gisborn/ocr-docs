@@ -59,12 +59,13 @@ func main() {
 	// Создаем сервисы
 	authService := service.NewAuthService(repo, billingURL, billingToken)
 	apiKeyService := service.NewAPIKeyService(repo)
+	paymentService := service.NewPaymentService(pool, billingURL, billingToken)
 
 	// Создаем middleware
 	authMiddleware := middleware.NewAuthMiddleware(repo)
 
 	// Создаем HTTP handler
-	httpHandler := handler.NewHandler(authService, apiKeyService)
+	httpHandler := handler.NewHandler(authService, apiKeyService, paymentService)
 
 	// Настраиваем маршруты
 	mux := http.NewServeMux()
@@ -102,6 +103,12 @@ func main() {
 			}
 		case strings.HasPrefix(path, "/api/v1/api-keys/"):
 			httpHandler.RevokeAPIKey(w, r)
+		case path == "/api/v1/payments/mock":
+			httpHandler.CreateMockPayment(w, r)
+		case strings.HasSuffix(path, "/confirm") && strings.Contains(path, "/payments/mock_"):
+			httpHandler.ConfirmMockPayment(w, r)
+		case path == "/api/v1/balance":
+			httpHandler.GetBalance(w, r)
 		default:
 			http.Error(w, `{"error":"not found"}`, http.StatusNotFound)
 		}

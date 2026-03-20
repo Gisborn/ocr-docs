@@ -154,6 +154,11 @@ func ExemptPath(path string) bool {
 		"/health",
 		"/webhooks/yookassa",
 		"/v1/webhooks/",
+		"/api/v1/auth/",
+		"/api/v1/payments/",
+		"/api/v1/mock-payments",
+		"/api/v1/api-keys",
+		"/api/v1/balance",
 	}
 
 	for _, exempt := range exemptPaths {
