@@ -20,6 +20,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
@@ -84,6 +85,35 @@ func main() {
 	// Public API (без auth)
 	mux.HandleFunc("/api/v1/auth/register", httpHandler.Register)
 	mux.HandleFunc("/api/v1/auth/login", httpHandler.Login)
+
+	// Legal documents (публичные)
+	legalDocsPath := getEnv("LEGAL_DOCS_PATH", "docs/legal")
+	mux.HandleFunc("/legal/privacy", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
+			return
+		}
+		data, err := os.ReadFile(filepath.Join(legalDocsPath, "privacy-policy.md"))
+		if err != nil {
+			http.Error(w, `{"error":"document not found"}`, http.StatusNotFound)
+			return
+		}
+		w.Header().Set("Content-Type", "text/markdown; charset=utf-8")
+		w.Write(data)
+	})
+	mux.HandleFunc("/legal/terms", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
+			return
+		}
+		data, err := os.ReadFile(filepath.Join(legalDocsPath, "terms-of-service.md"))
+		if err != nil {
+			http.Error(w, `{"error":"document not found"}`, http.StatusNotFound)
+			return
+		}
+		w.Header().Set("Content-Type", "text/markdown; charset=utf-8")
+		w.Write(data)
+	})
 
 	// Protected API (с auth)
 	protected := authMiddleware.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

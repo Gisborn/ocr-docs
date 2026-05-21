@@ -25,6 +25,9 @@ COPY --from=builder /app/cabinet-service .
 # Копируем статические файлы (ЛК UI)
 COPY --from=builder /app/services/cabinet/pages ./pages
 
+# Копируем правовые документы
+COPY --from=builder /app/docs/legal ./docs/legal
+
 # Открываем порт
 EXPOSE 8084
 

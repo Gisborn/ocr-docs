@@ -57,10 +57,10 @@ func NewPostgresRepository(pool *pgxpool.Pool) *PostgresRepository {
 // CreateOrganization создает новую организацию
 func (r *PostgresRepository) CreateOrganization(ctx context.Context, org *models.Organization) error {
 	return r.pool.QueryRow(ctx,
-		`INSERT INTO organizations (name, email, password_hash, status, created_at, updated_at)
-		 VALUES ($1, $2, $3, $4, NOW(), NOW())
+		`INSERT INTO organizations (name, email, password_hash, status, accepted_terms_at, created_at, updated_at)
+		 VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
 		 RETURNING id, created_at, updated_at`,
-		org.Name, org.Email, org.PasswordHash, org.Status,
+		org.Name, org.Email, org.PasswordHash, org.Status, org.AcceptedTermsAt,
 	).Scan(&org.ID, &org.CreatedAt, &org.UpdatedAt)
 }
 
@@ -68,11 +68,11 @@ func (r *PostgresRepository) CreateOrganization(ctx context.Context, org *models
 func (r *PostgresRepository) GetOrganizationByEmail(ctx context.Context, email string) (*models.Organization, error) {
 	org := &models.Organization{}
 	err := r.pool.QueryRow(ctx,
-		`SELECT id, name, email, email_verified, password_hash, billing_account_id, status, created_at, updated_at
+		`SELECT id, name, email, email_verified, password_hash, billing_account_id, accepted_terms_at, status, created_at, updated_at
 		 FROM organizations WHERE email = $1`,
 		email,
 	).Scan(&org.ID, &org.Name, &org.Email, &org.EmailVerified, &org.PasswordHash,
-		&org.BillingAccountID, &org.Status, &org.CreatedAt, &org.UpdatedAt)
+		&org.BillingAccountID, &org.AcceptedTermsAt, &org.Status, &org.CreatedAt, &org.UpdatedAt)
 	
 	if err != nil {
 		if err == pgx.ErrNoRows {
@@ -87,11 +87,11 @@ func (r *PostgresRepository) GetOrganizationByEmail(ctx context.Context, email s
 func (r *PostgresRepository) GetOrganizationByID(ctx context.Context, id int64) (*models.Organization, error) {
 	org := &models.Organization{}
 	err := r.pool.QueryRow(ctx,
-		`SELECT id, name, email, email_verified, password_hash, billing_account_id, status, created_at, updated_at
+		`SELECT id, name, email, email_verified, password_hash, billing_account_id, accepted_terms_at, status, created_at, updated_at
 		 FROM organizations WHERE id = $1`,
 		id,
 	).Scan(&org.ID, &org.Name, &org.Email, &org.EmailVerified, &org.PasswordHash,
-		&org.BillingAccountID, &org.Status, &org.CreatedAt, &org.UpdatedAt)
+		&org.BillingAccountID, &org.AcceptedTermsAt, &org.Status, &org.CreatedAt, &org.UpdatedAt)
 	
 	if err != nil {
 		if err == pgx.ErrNoRows {

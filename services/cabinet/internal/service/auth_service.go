@@ -37,6 +37,7 @@ type RegisterRequest struct {
 	OrganizationName string `json:"organization_name"`
 	Email            string `json:"email"`
 	Password         string `json:"password"`
+	AcceptedTerms    bool   `json:"accepted_terms"`
 }
 
 // RegisterResponse ответ на регистрацию
@@ -58,6 +59,9 @@ func (s *AuthService) Register(ctx context.Context, req *RegisterRequest) (*Regi
 	if len(req.Password) < 8 {
 		return nil, fmt.Errorf("password must be at least 8 characters")
 	}
+	if !req.AcceptedTerms {
+		return nil, fmt.Errorf("you must accept the terms of service and privacy policy")
+	}
 
 	// Проверяем, не занят ли email
 	existing, err := s.repo.GetOrganizationByEmail(ctx, strings.ToLower(req.Email))
@@ -74,12 +78,14 @@ func (s *AuthService) Register(ctx context.Context, req *RegisterRequest) (*Regi
 		return nil, fmt.Errorf("password hash error: %w", err)
 	}
 
+	now := time.Now()
 	// Создаем организацию
 	org := &models.Organization{
-		Name:         req.OrganizationName,
-		Email:        strings.ToLower(req.Email),
-		PasswordHash: string(passwordHash),
-		Status:       "pending", // Ожидает подтверждения email
+		Name:            req.OrganizationName,
+		Email:           strings.ToLower(req.Email),
+		PasswordHash:    string(passwordHash),
+		Status:          "pending", // Ожидает подтверждения email
+		AcceptedTermsAt: &now,
 	}
 
 	if err := s.repo.CreateOrganization(ctx, org); err != nil {

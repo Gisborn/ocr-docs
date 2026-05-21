@@ -12,6 +12,7 @@ type Organization struct {
 	EmailVerified     bool       `json:"email_verified" db:"email_verified"`
 	PasswordHash      string     `json:"-" db:"password_hash"`
 	BillingAccountID  *int64     `json:"billing_account_id,omitempty" db:"billing_account_id"`
+	AcceptedTermsAt   *time.Time `json:"accepted_terms_at,omitempty" db:"accepted_terms_at"`
 	Status            string     `json:"status" db:"status"` // active, blocked, archived
 	CreatedAt         time.Time  `json:"created_at" db:"created_at"`
 	UpdatedAt         time.Time  `json:"updated_at" db:"updated_at"`
