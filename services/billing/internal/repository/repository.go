@@ -2,7 +2,6 @@ package repository
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"time"
 
@@ -286,7 +285,7 @@ func (r *PostgresRepository) GetActiveSubscription(ctx context.Context, accountI
 		&sub.GracePeriodEndsAt, &sub.InitialPrepaidRub, &sub.AutoRenew, &sub.NextTariffVersionID,
 		&sub.CreatedAt, &sub.UpdatedAt)
 	
-	if err == sql.ErrNoRows {
+	if err == pgx.ErrNoRows {
 		return nil, nil
 	}
 	if err != nil {

@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 	"time"
 
@@ -30,6 +31,11 @@ func main() {
 	
 	// Порог confidence (по умолчанию 0.80)
 	confidenceThreshold := 0.80
+	if thresholdStr := getEnv("OCR_CONFIDENCE_THRESHOLD", ""); thresholdStr != "" {
+		if threshold, err := strconv.ParseFloat(thresholdStr, 64); err == nil {
+			confidenceThreshold = threshold
+		}
+	}
 
 	// Создаем OCR провайдеры
 	var primary, fallback ocr.Provider

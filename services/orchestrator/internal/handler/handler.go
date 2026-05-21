@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 
 	"scan.passport.local/api/services/orchestrator/internal/service"
 )
@@ -168,13 +169,20 @@ func (h *Handler) getAccountID(r *http.Request) int64 {
 		}
 	}
 
+	// Fallback на заголовок от API Gateway
+	if orgIDHeader := r.Header.Get("X-Organization-ID"); orgIDHeader != "" {
+		if id, err := strconv.ParseInt(orgIDHeader, 10, 64); err == nil {
+			return id
+		}
+	}
+
 	// Fallback на query параметр (для тестирования)
-	// accountIDStr := r.URL.Query().Get("account_id")
-	// if accountIDStr != "" {
-	// 	if id, err := strconv.ParseInt(accountIDStr, 10, 64); err == nil {
-	// 		return id
-	// 	}
-	// }
+	accountIDStr := r.URL.Query().Get("account_id")
+	if accountIDStr != "" {
+		if id, err := strconv.ParseInt(accountIDStr, 10, 64); err == nil {
+			return id
+		}
+	}
 
 	return 0
 }

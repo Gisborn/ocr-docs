@@ -99,6 +99,7 @@ func main() {
 		),
 	)
 	mux.Handle("/api/v1/", apiHandler)
+	mux.Handle("/v1/", apiHandler)
 
 	// Оборачиваем в CORS и logging middleware
 	corsMux := middleware.CORS(mux)

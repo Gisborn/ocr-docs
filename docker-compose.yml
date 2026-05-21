@@ -8,10 +8,10 @@ services:
       POSTGRES_PASSWORD: api_scan_secret
       POSTGRES_DB: api_scan
     ports:
-      - "5432:5432"
+      - "15432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./migrations/main:/docker-entrypoint-initdb.d
+      - ./scripts/initdb/main:/docker-entrypoint-initdb.d
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U api_scan -d api_scan"]
       interval: 5s
@@ -30,10 +30,10 @@ services:
       POSTGRES_PASSWORD: billing_secret
       POSTGRES_DB: billing_db
     ports:
-      - "5433:5432"
+      - "15433:5432"
     volumes:
       - billing_data:/var/lib/postgresql/data
-      - ./migrations/billing:/docker-entrypoint-initdb.d
+      - ./scripts/initdb/billing:/docker-entrypoint-initdb.d
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U billing -d billing_db"]
       interval: 5s
@@ -63,7 +63,7 @@ services:
     image: wiremock/wiremock:3.3.1
     container_name: api-scan-ocr-mock
     ports:
-      - "8080:8080"
+      - "28080:8080"
     volumes:
       - ./tests/mocks/ocr:/home/wiremock
     command: ["--global-stubbing", "--verbose"]
@@ -85,7 +85,7 @@ services:
       YOOKASSA_SECRET_KEY: "${YOOKASSA_SECRET_KEY:-}"
       BILLING_SERVICE_TOKEN: "${BILLING_SERVICE_TOKEN:-internal-service-token}"
     ports:
-      - "8081:8080"
+      - "18081:8080"
     depends_on:
       postgres-billing:
         condition: service_healthy
@@ -93,6 +93,31 @@ services:
       - api-scan-network
     profiles:
       - billing
+
+  # Orchestrator (OCR processing)
+  orchestrator:
+    build:
+      context: .
+      dockerfile: services/orchestrator/Dockerfile
+    container_name: api-scan-orchestrator
+    environment:
+      PORT: "8080"
+      YANDEX_VISION_API_KEY: "${YANDEX_VISION_API_KEY:-}"
+      YANDEX_FOLDER_ID: "${YANDEX_FOLDER_ID:-}"
+      VK_VISION_API_KEY: "${VK_VISION_API_KEY:-}"
+      VK_FOLDER_ID: "${VK_FOLDER_ID:-}"
+      BILLING_API_URL: "http://billing:8080"
+      BILLING_SERVICE_TOKEN: "${BILLING_SERVICE_TOKEN:-internal-service-token}"
+      OCR_CONFIDENCE_THRESHOLD: "0.80"
+    ports:
+      - "18083:8080"
+    depends_on:
+      billing:
+        condition: service_started
+    networks:
+      - api-scan-network
+    profiles:
+      - orchestrator
 
   # API Gateway (единая точка входа)
   api-gateway:
@@ -109,7 +134,7 @@ services:
       BILLING_WEBHOOK_URL: "http://billing-webhook-yookassa:8080"
       CABINET_URL: "http://cabinet:8080"
     ports:
-      - "8080:8080"
+      - "18080:8080"
     depends_on:
       postgres:
         condition: service_healthy
@@ -120,6 +145,8 @@ services:
       billing-webhook-yookassa:
         condition: service_started
       cabinet:
+        condition: service_started
+      orchestrator:
         condition: service_started
     networks:
       - api-scan-network
@@ -138,7 +165,7 @@ services:
       BILLING_URL: "http://billing:8080"
       BILLING_SERVICE_TOKEN: "${BILLING_SERVICE_TOKEN:-internal-service-token}"
     ports:
-      - "8084:8080"
+      - "18084:8080"
     depends_on:
       postgres:
         condition: service_healthy
@@ -161,7 +188,7 @@ services:
       YOOKASSA_SECRET_KEY: "${YOOKASSA_SECRET_KEY:-}"
       IP_WHITELIST: "185.71.76.0/27,185.71.77.0/27,77.75.153.0/25"
     ports:
-      - "8082:8080"
+      - "18082:8080"
     depends_on:
       postgres-billing:
         condition: service_healthy

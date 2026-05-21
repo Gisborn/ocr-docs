@@ -212,7 +212,7 @@ func isValidDate(day, month, year string) bool {
 	m, _ := strconv.Atoi(month)
 	y, _ := strconv.Atoi(year)
 
-	if d < 1 || d > 31 || m < 1 || m > 12 || y < 1900 || y > 2100 {
+	if d < 1 || d > 31 || m < 1 || m > 12 || y < 1500 || y > 2100 {
 		return false
 	}
 

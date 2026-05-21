@@ -53,7 +53,7 @@ docker-up:
 	@which goose > /dev/null 2>&1 && (cd migrations/main && goose up) || echo "  goose not installed, skipping migrations (DB will use init scripts)"
 	@which goose > /dev/null 2>&1 && (cd migrations/billing && goose up) || echo "  goose not installed, skipping billing migrations"
 	@echo "Starting services..."
-	@docker-compose --profile billing --profile gateway --profile cabinet up -d
+	@docker-compose --profile billing --profile gateway --profile cabinet --profile orchestrator up -d
 	@echo ""
 	@echo "✓ Services started! Test data available:"
 	@echo "  Email: test@example.com"
@@ -67,7 +67,7 @@ docker-up:
 # Stop all services
 docker-down:
 	@echo "Stopping all services..."
-	@docker-compose --profile billing --profile gateway --profile cabinet down
+	@docker-compose --profile billing --profile gateway --profile cabinet --profile orchestrator down
 
 # Check health of all services
 health:

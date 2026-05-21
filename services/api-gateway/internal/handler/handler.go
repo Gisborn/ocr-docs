@@ -7,6 +7,8 @@ import (
 	"net/url"
 	"strings"
 	"time"
+
+	"scan.passport.local/api/services/api-gateway/internal/middleware"
 )
 
 // Handler HTTP handler для API Gateway
@@ -112,6 +114,14 @@ func (h *Handler) ProxyHandler(w http.ResponseWriter, r *http.Request) {
 		for _, value := range values {
 			proxyReq.Header.Add(key, value)
 		}
+	}
+
+	// Передаем organization_id и api_key_id downstream сервисам
+	if orgID := r.Context().Value(middleware.ContextKeyOrganizationID); orgID != nil {
+		proxyReq.Header.Set("X-Organization-ID", fmt.Sprintf("%v", orgID))
+	}
+	if keyID := r.Context().Value(middleware.ContextKeyAPIKeyID); keyID != nil {
+		proxyReq.Header.Set("X-API-Key-ID", fmt.Sprintf("%v", keyID))
 	}
 
 	// Добавляем X-Forwarded-For
