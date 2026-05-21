@@ -112,8 +112,8 @@ func TestGenerateAPIKey(t *testing.T) {
 		t.Errorf("ParseAPIKey() secret = %v, want my_secret_key", secret)
 	}
 
-	// Проверяем что хеш валидный
-	err = bcrypt.CompareHashAndPassword([]byte(hash), []byte("my_secret_key"))
+	// Проверяем что хеш валидный (хешируется полный base64 ключ, как в cabinet service)
+	err = bcrypt.CompareHashAndPassword([]byte(hash), []byte(fullKey))
 	if err != nil {
 		t.Errorf("bcrypt hash invalid: %v", err)
 	}

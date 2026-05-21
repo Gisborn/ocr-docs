@@ -135,15 +135,15 @@ func ParseAPIKey(apiKey string) (int64, string, error) {
 // GenerateAPIKey генерирует новый API ключ
 // Возвращает полный ключ (для показа пользователю) и хеш (для хранения)
 func GenerateAPIKey(keyID int64, secret string) (fullKey, hash string, err error) {
-	// Генерируем хеш bcrypt
-	hashBytes, err := bcrypt.GenerateFromPassword([]byte(secret), bcrypt.DefaultCost)
-	if err != nil {
-		return "", "", fmt.Errorf("bcrypt hash: %w", err)
-	}
-
 	// Формируем полный ключ: base64(key_id:secret)
 	fullKeyRaw := fmt.Sprintf("%d:%s", keyID, secret)
 	fullKey = base64.StdEncoding.EncodeToString([]byte(fullKeyRaw))
+
+	// Генерируем хеш bcrypt от полного ключа (как в cabinet service)
+	hashBytes, err := bcrypt.GenerateFromPassword([]byte(fullKey), bcrypt.DefaultCost)
+	if err != nil {
+		return "", "", fmt.Errorf("bcrypt hash: %w", err)
+	}
 
 	return fullKey, string(hashBytes), nil
 }

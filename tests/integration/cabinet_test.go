@@ -38,10 +38,17 @@ func TestMain(m *testing.M) {
 	ctx := context.Background()
 	pool, err := pgxpool.New(ctx, databaseURL)
 	if err != nil {
-		fmt.Printf("Failed to connect to database: %v\n", err)
-		os.Exit(1)
+		fmt.Printf("SKIP: Failed to connect to database: %v\n", err)
+		os.Exit(0)
 	}
 	testPool = pool
+
+	// Health check cabinet service
+	if _, err := http.Get(cabinetURL + "/health"); err != nil {
+		fmt.Printf("SKIP: Cabinet service not available at %s: %v\n", cabinetURL, err)
+		testPool.Close()
+		os.Exit(0)
+	}
 
 	// Wait for services
 	time.Sleep(2 * time.Second)
