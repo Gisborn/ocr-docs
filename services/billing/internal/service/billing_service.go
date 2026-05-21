@@ -65,7 +65,7 @@ func (s *BillingService) Reserve(ctx context.Context, accountID int64, req *Rese
 	}
 
 	// Получаем события после снапшота для пересчета
-	events, err := s.repo.GetBillingEventsSince(ctx, accountID, balance.UpdatedAt)
+	events, err := s.repo.GetBillingEventsSince(ctx, accountID, balance.UpdatedAt.Add(-time.Microsecond))
 	if err != nil {
 		return nil, fmt.Errorf("failed to get events: %w", err)
 	}

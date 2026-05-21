@@ -236,7 +236,7 @@ func (r *PostgresRepository) CreateBillingEvent(ctx context.Context, event *mode
 func (r *PostgresRepository) GetBillingEventsSince(ctx context.Context, accountID int64, since time.Time) ([]*models.BillingEvent, error) {
 	rows, err := r.query(ctx,
 		`SELECT id, account_id, subscription_id, service_id, type, real_amount_rub, prepaid_amount_rub, request_id, metadata, created_at
-		 FROM billing_events WHERE account_id = $1 AND created_at >= $2`,
+		 FROM billing_events WHERE account_id = $1 AND created_at > $2`,
 		accountID, since,
 	)
 	if err != nil {

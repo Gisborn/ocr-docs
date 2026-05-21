@@ -206,7 +206,7 @@ func (s *SubscriptionService) GetBalance(ctx context.Context, accountID int64) (
 	log.Printf("[GetBalance] Got snapshot for account %d: real=%.2f, prepaid=%.2f", accountID, snapshot.RealBalanceRub, snapshot.PrepaidBalanceRub)
 
 	// Получаем события после снапшота
-	events, err := s.repo.GetBillingEventsSince(ctx, accountID, snapshot.UpdatedAt)
+	events, err := s.repo.GetBillingEventsSince(ctx, accountID, snapshot.UpdatedAt.Add(-time.Microsecond))
 	if err != nil {
 		log.Printf("[GetBalance] Error getting events: %v", err)
 		return nil, err
