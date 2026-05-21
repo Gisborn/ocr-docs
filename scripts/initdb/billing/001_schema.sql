@@ -4,7 +4,7 @@
 CREATE TYPE billing_event_type AS ENUM (
     'account_created',
     'balance_topup',
-    'subscription_payment',
+    'subscription_charge',
     'upgrade_payment',
     'upgrade_bonus',
     'prepaid_usage',

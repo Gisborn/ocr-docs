@@ -208,7 +208,7 @@ WHERE status IN ('active', 'grace_period');
 CREATE TYPE billing_event_type AS ENUM (
     'account_created',
     'balance_topup',
-    'subscription_payment',
+    'subscription_charge',
     'upgrade_payment',
     'upgrade_bonus',
     'prepaid_usage',
@@ -599,7 +599,7 @@ Content-Type: application/json
 }
 
 -- Проверяем баланс >= 4000
--- billing_events: type='subscription_payment', real_amount_rub=-4000
+-- billing_events: type='subscription_charge', real_amount_rub=-4000
 -- subscriptions: создаем запись
 ```
 
@@ -706,9 +706,9 @@ COMMIT;
 ```
 
 **Почему так:**
-- `balance_snapshots` обновляется раз в 5 минут (cron)
-- За 5 минут накопится мало событий — их можно быстро просуммировать
-- `billing_events` за 5 минут = десятки записей, не тысячи — производительность ОК
+- `balance_snapshots` — кэш баланса; при пересчёте (`RecalculateBalance`) события суммируются и записываются в снапшот
+- При записи снапшота `updated_at` устанавливается на `NOW() - 1 микросекунду`. Это гарантирует, что любое событие, созданное в той же транзакции/микросекунде, будет строго позже снапшота и попадёт в пересчёт при следующем `GetBalance` через `created_at > updated_at`
+- `billing_events` с момента последнего снапшота = десятки записей, не тысячи — производительность ОК
 - `reservations` — активные PENDING-резервы, которые ещё не стали событиями
 
 ### 4. Жизненный цикл подписки (cron jobs)
@@ -744,7 +744,7 @@ SELECT
     -GREATEST(0, COALESCE(SUM(be.prepaid_amount_rub), 0))  -- сжигаем остаток
 FROM subscriptions s
 LEFT JOIN billing_events be ON be.subscription_id = s.id 
-    AND be.type IN ('subscription_payment', 'upgrade_bonus', 'prepaid_usage')
+    AND be.type IN ('subscription_charge', 'upgrade_bonus', 'prepaid_usage')
 WHERE s.status = 'expired' 
   AND NOT EXISTS (
       -- Проверяем что ещё не списывали остаток

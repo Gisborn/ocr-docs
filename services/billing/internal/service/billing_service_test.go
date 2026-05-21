@@ -54,7 +54,7 @@ func (m *MockRepository) CreateAccount(ctx context.Context) (*models.Account, er
 		AccountID:         acc.ID,
 		RealBalanceRub:    0,
 		PrepaidBalanceRub: 0,
-		UpdatedAt:         time.Now(),
+		UpdatedAt:         time.Now().Add(-time.Microsecond),
 	}
 	m.nextAccountID++
 	return acc, nil
@@ -77,6 +77,7 @@ func (m *MockRepository) GetAccountBalance(ctx context.Context, accountID int64)
 }
 
 func (m *MockRepository) UpdateBalanceSnapshot(ctx context.Context, snapshot *models.BalanceSnapshot) error {
+	snapshot.UpdatedAt = time.Now().Add(-time.Microsecond)
 	m.balances[snapshot.AccountID] = snapshot
 	return nil
 }

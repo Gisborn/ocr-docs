@@ -115,7 +115,7 @@ func (r *PostgresRepository) CreateAccount(ctx context.Context) (*models.Account
 	// Создаем начальный снапшот баланса
 	err = r.exec(ctx,
 		`INSERT INTO balance_snapshots (account_id, real_balance_rub, prepaid_balance_rub, updated_at)
-		 VALUES ($1, 0, 0, NOW())
+		 VALUES ($1, 0, 0, NOW() - interval '1 microsecond')
 		 ON CONFLICT (account_id) DO NOTHING`,
 		account.ID,
 	)
@@ -154,7 +154,7 @@ func (r *PostgresRepository) GetAccountBalance(ctx context.Context, accountID in
 func (r *PostgresRepository) UpdateBalanceSnapshot(ctx context.Context, snapshot *models.BalanceSnapshot) error {
 	return r.exec(ctx,
 		`UPDATE balance_snapshots 
-		 SET real_balance_rub = $1, prepaid_balance_rub = $2, updated_at = NOW()
+		 SET real_balance_rub = $1, prepaid_balance_rub = $2, updated_at = NOW() - interval '1 microsecond'
 		 WHERE account_id = $3`,
 		snapshot.RealBalanceRub, snapshot.PrepaidBalanceRub, snapshot.AccountID,
 	)
