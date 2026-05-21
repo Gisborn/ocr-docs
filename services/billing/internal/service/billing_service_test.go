@@ -126,7 +126,7 @@ func (m *MockRepository) CreateBillingEvent(ctx context.Context, e *models.Billi
 func (m *MockRepository) GetBillingEventsSince(ctx context.Context, accountID int64, since time.Time) ([]*models.BillingEvent, error) {
 	var result []*models.BillingEvent
 	for _, e := range m.events {
-		if e.AccountID == accountID && e.CreatedAt.After(since) {
+		if e.AccountID == accountID && !e.CreatedAt.Before(since) {
 			result = append(result, e)
 		}
 	}

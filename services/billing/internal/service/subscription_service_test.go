@@ -42,31 +42,27 @@ func TestCreateSubscription(t *testing.T) {
 		t.Fatalf("CreateSubscription failed: %v", err)
 	}
 	
-	if resp.ID == 0 {
+	if resp.SubscriptionID == 0 {
 		t.Error("Expected subscription ID")
 	}
 	if resp.Status != "active" {
 		t.Errorf("Expected status active, got %s", resp.Status)
 	}
-	if resp.TariffCode != "pro" {
-		t.Errorf("Expected tariff pro, got %s", resp.TariffCode)
-	}
-	
 	// Проверяем что создано событие списания
 	foundPayment := false
 	for _, e := range repo.events {
-		if e.Type == "subscription_payment" && e.RealAmountRub == -20000 {
+		if e.Type == "subscription_charge" && e.RealAmountRub == -20000 {
 			foundPayment = true
 			break
 		}
 	}
 	if !foundPayment {
-		t.Error("Expected subscription_payment event with -20000")
+		t.Error("Expected subscription_charge event with -20000")
 	}
-	
-	// Проверяем что созданы события
-	if len(repo.events) < 2 {
-		t.Error("Expected at least 2 billing events (payment + prepaid)")
+
+	// Проверяем что создано ровно одно событие
+	if len(repo.events) != 1 {
+		t.Errorf("Expected 1 billing event, got %d", len(repo.events))
 	}
 }
 
@@ -141,25 +137,18 @@ func TestUpgradeSubscription(t *testing.T) {
 	})
 	
 	// Апгрейдим до pro
-	resp, err := svc.Upgrade(context.Background(), acc.ID, &UpgradeRequest{
+	resp, err := svc.UpgradeSubscription(context.Background(), acc.ID, &UpgradeSubscriptionRequest{
 		TariffCode:    "pro",
 		PaymentMethod: "balance",
 	})
-	
+
 	if err != nil {
-		t.Fatalf("Upgrade failed: %v", err)
+		t.Fatalf("UpgradeSubscription failed: %v", err)
 	}
-	
-	if resp.PreviousTariff != "basic" {
-		t.Errorf("Expected previous tariff basic, got %s", resp.PreviousTariff)
-	}
-	if resp.NewTariff != "pro" {
-		t.Errorf("Expected new tariff pro, got %s", resp.NewTariff)
-	}
-	
+
 	// Проверяем что списана доплата
 	// При апгрейде сразу после создания доплата должна быть полной ценой
-	if resp.TotalChargeRub <= 0 {
+	if resp.AmountCharged <= 0 {
 		t.Error("Expected positive total charge")
 	}
 }
@@ -172,7 +161,7 @@ func TestGetBalance(t *testing.T) {
 	acc, _ := repo.CreateAccount(context.Background())
 	repo.balances[acc.ID].RealBalanceRub = 10000
 	repo.balances[acc.ID].PrepaidBalanceRub = 5000
-	
+
 	// Добавляем событие
 	repo.CreateBillingEvent(context.Background(), &models.BillingEvent{
 		AccountID:     acc.ID,

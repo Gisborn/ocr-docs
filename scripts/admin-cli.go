@@ -11,8 +11,8 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"golang.org/x/crypto/bcrypt"
-	"scan.passport.local/api/services/cabinet/internal/repository"
 	"scan.passport.local/api/services/cabinet/pkg/models"
+	"scan.passport.local/api/services/cabinet/pkg/repository"
 )
 
 // AdminCLI CLI for system administration
@@ -231,6 +231,7 @@ func (cli *AdminCLI) listAPIKeys(ctx context.Context) {
 		if key.Status != "active" {
 			preview = "****xxxx"
 		}
+		_ = preview
 		fmt.Printf("%-5d %-20s %-10s %-15d %-20s\n",
 			key.ID,
 			key.Name,
