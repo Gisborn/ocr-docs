@@ -103,6 +103,8 @@ services:
     environment:
       PORT: "8080"
       YANDEX_VISION_API_KEY: "${YANDEX_VISION_API_KEY:-}"
+      YANDEX_VISION_USE_V2: "${YANDEX_VISION_USE_V2:-true}"
+      YANDEX_VISION_MODEL: "${YANDEX_VISION_MODEL:-passport}"
       YANDEX_FOLDER_ID: "${YANDEX_FOLDER_ID:-}"
       VK_VISION_API_KEY: "${VK_VISION_API_KEY:-}"
       VK_FOLDER_ID: "${VK_FOLDER_ID:-}"

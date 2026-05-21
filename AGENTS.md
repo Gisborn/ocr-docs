@@ -91,8 +91,10 @@ Yandex Message Queue  ←── буфер, выравнивание пиков
      │
      ▼
 Core Orchestrator (Serverless Container)
-     ├── OCR: Yandex Vision (primary)
-     │         └── fallback → VK Vision
+     ├── OCR: Yandex Vision v2 (primary)
+     │         ├── passport model → structured entities
+     │         ├── недостаточно полей → generic page model + парсинг
+     │         └── fallback → VK Vision v1 (generic OCR)
      └── Нормализатор: ФИО, даты, серия/номер, код подразделения
      │
      ▼
@@ -123,7 +125,10 @@ JSON-ответ → Клиент
 
 #### Core Orchestrator
 - Последовательность: OCR → нормализация → ответ
-- Fallback OCR при недоступности primary провайдера
+- OCR: Yandex Vision v2 с моделями (`passport`, `driver-license-front` и др.)
+  - Structured model возвращает готовые entities без ручного парсинга
+  - Fallback на generic `page` модель + текстовый парсинг при неполных полях
+  - Fallback на VK Vision v1 при 5xx / таймауте
 - Stateless: изображение только в RAM, на диск не пишется
 - В v1 вызывается напрямую (синхронно), Yandex Message Queue используется только в планируемой v2
 

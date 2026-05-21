@@ -93,9 +93,10 @@ Billing: проверка баланса
      │
      ▼
 Core Orchestrator (прямой вызов, без очереди)
-     ├── OCR: Yandex Vision (primary)
-     │         ├── confidence < порога → fallback → VK Vision
-     │         └── 5xx / таймаут    → fallback → VK Vision
+     ├── OCR: Yandex Vision v2 (primary)
+     │         ├── Structured model (passport) → entities
+     │         ├── Недостаточно полей       → fallback → generic page model + парсинг
+     │         └── 5xx / таймаут            → fallback → VK Vision v1 (generic OCR)
      └── Нормализатор: ФИО, даты, серия/номер, код подразделения
      │
      ▼
@@ -151,7 +152,7 @@ JSON-ответ (с request_id и блоком confidences) → 1С
 #### Core Orchestrator
 - Yandex Serverless Container (stateless Docker-образ, запускается в любом Kubernetes / Serverless)
 - В v1 вызывается напрямую из Gateway (без очереди). В v2 будет читать задачи из Message Queue.
-- **OCR Fallback:** при `5xx`, таймауте или confidence < порога от Yandex Vision — повторный запрос к VK Vision. Провайдеры используются поочерёдно, не параллельно.
+- **OCR провайдеры:** Yandex Vision v2 (primary) + VK Vision (fallback). Yandex Vision v2 поддерживает модели распознавания (`passport`, `driver-license-front` и др.) и имеет внутренний fallback: если structured model не вернула достаточно полей — автоматически пробуется generic `page` модель с текстовым парсингом. При `5xx`, таймауте или ошибке API — внешний fallback на VK Vision. Провайдеры используются поочерёдно, не параллельно.
 - **Порог confidence:** настраивается через конфигурацию (стартовое значение — 0.80). Поля с confidence ниже порога возвращаются как `null`, confidence по каждому полю включается в ответ.
 - **Circuit Breaker:** при N последовательных ошибках от провайдера за M секунд — провайдер временно исключается из ротации на период T, запросы идут напрямую к fallback.
 - **PDF:** конвертируется в изображение в изолированном процессе (sandbox) перед передачей в OCR. Plain text и метаданные PDF не используются.
@@ -161,7 +162,7 @@ JSON-ответ (с request_id и блоком confidences) → 1С
 
 ```
 interfaces/
-  ocr_provider   — YandexVision | VKVision | Mock
+  ocr_provider   — YandexVisionV2 | YandexVision (legacy) | VKVision | Mock
   queue          — YMQ | Kafka | SQS (для v2)
   cache          — Redis | NoopCache (fallback)
   storage        — PostgreSQL interface

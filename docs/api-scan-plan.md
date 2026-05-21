@@ -178,15 +178,18 @@ api-scan/
 
 ---
 
-### 2-1. Реализовать интеграцию с Yandex Vision
+### 2-1. Реализовать интеграцию с Yandex Vision v2
 
 **Что сделать:**
-Определить интерфейс `OcrProvider` и написать адаптер Yandex Vision: принимает байты изображения, отправляет запрос в Vision, возвращает структурированный результат с полями и значениями confidence. Изображение нигде не сохраняется — только в памяти в рамках вызова.
+Определить интерфейс `OcrProvider` и написать адаптер Yandex Vision v2: принимает байты изображения, отправляет запрос в OCR API v2 с указанием модели (`passport`, `page` и др.), возвращает структурированный результат с полями и значениями confidence. Изображение нигде не сохраняется — только в памяти в рамках вызова.
+
+**Модели:** `passport` (structured entities), `page` (generic OCR + текстовый парсинг), `driver-license-front`, `vehicle-registration-front` и др.
 
 **Критерии выполнения:**
 - Адаптер успешно распознаёт тестовый набор из 20 сканов паспортов РФ (чёткие фото).
 - Изображение не записывается на диск — проверяется через `lsof` или аналог в тестовом окружении.
-- При `5xx`-ответе от Yandex Vision адаптер выбрасывает типизированное исключение `OcrProviderError`.
+- При `5xx`-ответе от Yandex Vision v2 адаптер выбрасывает типизированное исключение `OcrProviderError`.
+- При недостаточном количестве полей от structured model — внутренний fallback на generic `page` модель.
 - Адаптер покрыт unit-тестами с моками HTTP-клиента.
 
 ---
@@ -230,12 +233,13 @@ api-scan/
 
 **Флоу:**
 1. `POST /accounts/{id}/reserve` — блокировка средств
-2. OCR (Yandex Vision → fallback VK Vision)
+2. OCR (Yandex Vision v2 → internal fallback → VK Vision)
 3. `POST /transactions/{id}/commit` (успех) или `/rollback` (ошибка)
 
 **Критерии выполнения:**
 - Сервис поднимается как Yandex Serverless Container (stateless Docker-образ) с параметрами: RAM 2 GB, CPU 2 vCPU, timeout 30 секунд.
-- При `5xx`, таймауте или confidence < порога от Yandex Vision — fallback VK Vision.
+- Yandex Vision v2: structured model → generic page model fallback → VK Vision fallback
+- При `5xx`, таймауте или confidence < порога — внешний fallback на VK Vision.
 - Circuit Breaker: 5 ошибок за 60 сек → исключение провайдера на 30 сек.
 - PDF конвертируется через `pdftoppm` в sandbox.
 - **Секреты:** Токены Yandex/VK Vision хранятся в Yandex Lockbox, монтируются через env. Не в коде, не в Docker-образе.

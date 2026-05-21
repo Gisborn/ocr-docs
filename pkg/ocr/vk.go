@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -148,7 +149,6 @@ func (v *VKVision) Recognize(ctx context.Context, image []byte) (*Result, error)
 }
 
 // convertResponse конвертирует ответ VK Vision в наш формат Result
-// VK Vision API имеет ту же структуру, что и Yandex Vision
 func (v *VKVision) convertResponse(resp *vkResponse) *Result {
 	result := &Result{
 		Fields:       make(map[string]Field),
@@ -159,74 +159,89 @@ func (v *VKVision) convertResponse(resp *vkResponse) *Result {
 		return result
 	}
 
-	// Используем ту же логику парсинга, что и для Yandex
-	// Т.к. API идентичны, конвертируем структуры
-	yandexResp := yandexResponse{
-		Results: make([]resultItem, len(resp.Results)),
-	}
+	// Собираем текст постранично и извлекаем блоки для confidence
+	var pageTexts []string
+	var allBlocks []textBlock
 
-	for i, r := range resp.Results {
+	for _, r := range resp.Results {
 		if r.Error != nil {
-			yandexResp.Results[i].Error = &yandexError{
-				Code:    r.Error.Code,
-				Message: r.Error.Message,
-			}
+			continue
 		}
-
 		for _, res := range r.Results {
 			if res.TextDetection != nil {
-				td := &textDetection{
-					Pages: make([]page, len(res.TextDetection.Pages)),
-				}
-				for j, p := range res.TextDetection.Pages {
-					td.Pages[j].Blocks = make([]block, len(p.Blocks))
-					for k, b := range p.Blocks {
-						td.Pages[j].Blocks[k] = block{
-							Confidence: b.Confidence,
-							Lines:      make([]line, len(b.Lines)),
-						}
-						for l, ln := range b.Lines {
-							td.Pages[j].Blocks[k].Lines[l].Words = make([]word, len(ln.Words))
-							for m, w := range ln.Words {
-								td.Pages[j].Blocks[k].Lines[l].Words[m] = word{
-									Text:       w.Text,
-									Confidence: w.Confidence,
-								}
-							}
+				for _, p := range res.TextDetection.Pages {
+					var pageText strings.Builder
+					for _, b := range p.Blocks {
+						blockText := extractVKBlockText(b)
+						if blockText != "" {
+							blockConf := extractVKBlockConfidence(b)
+							pageText.WriteString(blockText + "\n")
+							allBlocks = append(allBlocks, textBlock{
+								Text:       blockText,
+								Confidence: blockConf,
+							})
 						}
 					}
+					pageTexts = append(pageTexts, pageText.String())
 				}
-				yandexResp.Results[i].Results = append(yandexResp.Results[i].Results, detectionResult{
-					TextDetection: td,
-				})
 			}
 		}
 	}
 
-	// Переиспользуем логику извлечения полей из Yandex
-	yandex := &YandexVision{}
-	converted := yandex.convertResponse(&yandexResp)
-	return &Result{
-		RawText:      converted.RawText,
-		Fields:       converted.Fields,
-		DocumentType: converted.DocumentType,
-	}
+	result.RawText = strings.Join(pageTexts, "\n---PAGE---\n")
+
+	// Извлекаем поля паспорта из текста
+	fields := ExtractPassportFields(result.RawText, allBlocks)
+	result.Fields = fields
+
+	return result
 }
 
-// Структуры для VK Vision API (идентичны Yandex Vision)
+// extractVKBlockText извлекает текст из VK блока
+func extractVKBlockText(block vkBlock) string {
+	var lines []string
+	for _, line := range block.Lines {
+		var words []string
+		for _, word := range line.Words {
+			words = append(words, word.Text)
+		}
+		if len(words) > 0 {
+			lines = append(lines, strings.Join(words, " "))
+		}
+	}
+	return strings.Join(lines, " ")
+}
+
+// extractVKBlockConfidence вычисляет средний confidence слов в блоке
+func extractVKBlockConfidence(block vkBlock) float64 {
+	var total float64
+	var count int
+	for _, line := range block.Lines {
+		for _, word := range line.Words {
+			total += word.Confidence
+			count++
+		}
+	}
+	if count == 0 {
+		return 0.8
+	}
+	return total / float64(count)
+}
+
+// Структуры для VK Vision API (идентичны Yandex Vision v1)
 type vkRequest struct {
 	FolderID     string          `json:"folderId"`
 	AnalyzeSpecs []vkAnalyzeSpec `json:"analyzeSpecs"`
 }
 
 type vkAnalyzeSpec struct {
-	Content  []byte       `json:"content"`
-	Features []vkFeature  `json:"features"`
+	Content  []byte      `json:"content"`
+	Features []vkFeature `json:"features"`
 }
 
 type vkFeature struct {
-	Type                string                  `json:"type"`
-	TextDetectionConfig *vkTextDetectionConfig  `json:"textDetectionConfig,omitempty"`
+	Type                string                 `json:"type"`
+	TextDetectionConfig *vkTextDetectionConfig `json:"textDetectionConfig,omitempty"`
 }
 
 type vkTextDetectionConfig struct {

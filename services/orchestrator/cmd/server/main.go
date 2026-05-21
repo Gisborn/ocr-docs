@@ -18,17 +18,21 @@ import (
 func main() {
 	// Читаем конфигурацию из env
 	port := getEnv("PORT", "8080")
-	
+
 	// OCR провайдеры
 	yandexAPIKey := getEnv("YANDEX_VISION_API_KEY", "")
 	yandexFolderID := getEnv("YANDEX_FOLDER_ID", "")
 	vkAPIKey := getEnv("VK_VISION_API_KEY", "")
 	vkFolderID := getEnv("VK_FOLDER_ID", "")
-	
+
+	// Yandex Vision v2 конфигурация
+	yandexUseV2 := getEnvBool("YANDEX_VISION_USE_V2", true)
+	yandexModel := getEnv("YANDEX_VISION_MODEL", "passport")
+
 	// Billing Service
 	billingURL := getEnv("BILLING_API_URL", "http://billing:8080")
 	billingToken := getEnv("BILLING_SERVICE_TOKEN", "")
-	
+
 	// Порог confidence (по умолчанию 0.80)
 	confidenceThreshold := 0.80
 	if thresholdStr := getEnv("OCR_CONFIDENCE_THRESHOLD", ""); thresholdStr != "" {
@@ -39,10 +43,23 @@ func main() {
 
 	// Создаем OCR провайдеры
 	var primary, fallback ocr.Provider
-	
-	if yandexAPIKey != "" && yandexFolderID != "" {
-		primary = ocr.NewYandexVision(yandexAPIKey, yandexFolderID)
-		log.Println("Using Yandex Vision as primary OCR provider")
+
+	if yandexAPIKey != "" {
+		if yandexUseV2 {
+			model := ocr.DocumentModel(yandexModel)
+			if !model.IsValid() {
+				log.Printf("WARNING: Invalid YANDEX_VISION_MODEL=%q, using default 'passport'", yandexModel)
+				model = ocr.ModelPassportRF
+			}
+			primary = ocr.NewYandexVisionV2(yandexAPIKey, model)
+			log.Printf("Using Yandex Vision v2 (model=%s) as primary OCR provider", model)
+		} else if yandexFolderID != "" {
+			primary = ocr.NewYandexVision(yandexAPIKey, yandexFolderID)
+			log.Println("Using Yandex Vision v1 (legacy) as primary OCR provider")
+		} else {
+			log.Println("WARNING: Yandex Vision v1 requires YANDEX_FOLDER_ID, using mock")
+			primary = ocr.NewMockProvider()
+		}
 	} else {
 		log.Println("WARNING: Yandex Vision not configured, using mock")
 		primary = ocr.NewMockProvider()
@@ -91,10 +108,10 @@ func main() {
 		<-sigChan
 
 		log.Println("Shutting down gracefully...")
-		
+
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
-		
+
 		if err := server.Shutdown(ctx); err != nil {
 			log.Printf("Shutdown error: %v", err)
 		}
@@ -109,6 +126,15 @@ func main() {
 func getEnv(key, defaultValue string) string {
 	if value := os.Getenv(key); value != "" {
 		return value
+	}
+	return defaultValue
+}
+
+func getEnvBool(key string, defaultValue bool) bool {
+	if value := os.Getenv(key); value != "" {
+		if b, err := strconv.ParseBool(value); err == nil {
+			return b
+		}
 	}
 	return defaultValue
 }
