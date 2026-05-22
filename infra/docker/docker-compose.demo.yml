@@ -192,5 +192,6 @@ volumes:
     driver: local
 
 networks:
-  api-scan-network:
-    driver: bridge
+  net:
+    external: true
+    name: net
