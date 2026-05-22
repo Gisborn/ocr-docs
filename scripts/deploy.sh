@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
-# Ручной деплой на production-сервер (Ubuntu)
-# Требования: Docker, Docker Compose plugin, доступ к GHCR
+# Ручной деплой API-Scan
+# Поддерживает production (с Traefik) и demo (с nginx) окружения
 #
 # Использование:
-#   ./scripts/deploy.sh
+#   ENVIRONMENT=production ./scripts/deploy.sh
+#   ENVIRONMENT=demo     ./scripts/deploy.sh
 #
 # Перед первым запуском:
 #   1. Скопируйте .env на сервер в ~/api-scan/
@@ -12,10 +13,17 @@
 set -euo pipefail
 
 APP_DIR="${APP_DIR:-$HOME/api-scan}"
-COMPOSE_FILE="${APP_DIR}/infra/docker/docker-compose.prod.yml"
+ENVIRONMENT="${ENVIRONMENT:-production}"
 ENV_FILE="${APP_DIR}/.env"
 
-echo "=== API-Scan Production Deploy ==="
+if [[ "${ENVIRONMENT}" == "demo" ]]; then
+    COMPOSE_FILE="${APP_DIR}/infra/docker/docker-compose.demo.yml"
+    echo "=== API-Scan Demo Deploy (nginx) ==="
+else
+    COMPOSE_FILE="${APP_DIR}/infra/docker/docker-compose.prod.yml"
+    echo "=== API-Scan Production Deploy (Traefik) ==="
+fi
+
 echo "App dir: ${APP_DIR}"
 echo "Compose file: ${COMPOSE_FILE}"
 echo ""
@@ -23,7 +31,7 @@ echo ""
 # Проверяем наличие .env
 if [[ ! -f "${ENV_FILE}" ]]; then
     echo "ERROR: .env file not found at ${ENV_FILE}"
-    echo "Create it first: cp .env.example .env && nano .env"
+    echo "Create it first: cp infra/docker/.env.example .env && nano .env"
     exit 1
 fi
 

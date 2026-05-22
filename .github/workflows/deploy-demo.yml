@@ -1,0 +1,120 @@
+name: Deploy to Demo Server (Timeweb)
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  COMPOSE_FILE: infra/docker/docker-compose.demo.yml
+
+jobs:
+  build:
+    name: Build and Push Images
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push API Gateway
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./services/api-gateway/Dockerfile
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ github.repository }}/api-gateway:latest
+          cache-from: type=gha,scope=api-gateway
+          cache-to: type=gha,mode=max,scope=api-gateway
+
+      - name: Build and push Billing
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./services/billing/Dockerfile
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ github.repository }}/billing:latest
+          cache-from: type=gha,scope=billing
+          cache-to: type=gha,mode=max,scope=billing
+
+      - name: Build and push Billing Webhook
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./services/billing-webhook-yookassa/Dockerfile
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ github.repository }}/billing-webhook-yookassa:latest
+          cache-from: type=gha,scope=billing-webhook
+          cache-to: type=gha,mode=max,scope=billing-webhook
+
+      - name: Build and push Cabinet
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./services/cabinet/Dockerfile
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ github.repository }}/cabinet:latest
+          cache-from: type=gha,scope=cabinet
+          cache-to: type=gha,mode=max,scope=cabinet
+
+      - name: Build and push Orchestrator
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./services/orchestrator/Dockerfile
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ github.repository }}/orchestrator:latest
+          cache-from: type=gha,scope=orchestrator
+          cache-to: type=gha,mode=max,scope=orchestrator
+
+  deploy:
+    name: Deploy to Timeweb Demo Server
+    runs-on: ubuntu-latest
+    needs: build
+    environment: demo
+
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          script_stop: true
+          script: |
+            set -euo pipefail
+            cd ~/api-scan
+
+            echo "=== Pulling latest images ==="
+            docker compose -f ${{ env.COMPOSE_FILE }} pull
+
+            echo "=== Running database migrations ==="
+            source .env
+            cd ~/api-scan/migrations/main && goose postgres "postgres://${POSTGRES_USER:-api_scan}:${POSTGRES_PASSWORD}@localhost:5432/${POSTGRES_DB:-api_scan}?sslmode=disable" up
+            cd ~/api-scan/migrations/billing && goose postgres "postgres://${POSTGRES_BILLING_USER:-billing}:${POSTGRES_BILLING_PASSWORD}@localhost:5432/${POSTGRES_BILLING_DB:-billing_db}?sslmode=disable" up
+            cd ~/api-scan
+
+            echo "=== Starting services ==="
+            docker compose -f ${{ env.COMPOSE_FILE }} up -d --remove-orphans
+
+            echo "=== Cleanup ==="
+            docker system prune -f
+
+            echo "=== Health check ==="
+            sleep 5
+            curl -fsS http://localhost:8080/health || echo "API Gateway health check failed"

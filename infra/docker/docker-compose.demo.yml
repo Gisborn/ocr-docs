@@ -1,0 +1,194 @@
+# Demo Docker Compose для API-Scan
+# Используется на Timeweb сервере с существующим nginx + certbot
+#
+# Все порты замаплены только на 127.0.0.1 (localhost),
+# чтобы nginx проксировал трафик, а прямой доступ извне был закрыт.
+#
+# Требования на сервере:
+# - Docker + Docker Compose plugin
+# - nginx с Let's Encrypt (certbot)
+# - Go + goose для миграций БД
+# - Поддомены api.aywaa.ru и cabinet.aywaa.ru → A-запись на 89.223.68.18
+
+services:
+  # ── Databases ────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: api-scan-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-api_scan}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD required}
+      POSTGRES_DB: ${POSTGRES_DB:-api_scan}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    # Только localhost — nginx проксирует наружу
+    ports:
+      - "127.0.0.1:15432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - api-scan-network
+
+  postgres-billing:
+    image: postgres:16-alpine
+    container_name: api-scan-postgres-billing
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_BILLING_USER:-billing}
+      POSTGRES_PASSWORD: ${POSTGRES_BILLING_PASSWORD:?POSTGRES_BILLING_PASSWORD required}
+      POSTGRES_DB: ${POSTGRES_BILLING_DB:-billing_db}
+    volumes:
+      - billing_data:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:15433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - api-scan-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: api-scan-redis
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+    ports:
+      - "127.0.0.1:16379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - api-scan-network
+
+  # ── Application Services ─────────────────────────────────────────
+  billing:
+    image: ${GHCR_REGISTRY:-ghcr.io}/${GHCR_REPOSITORY}/billing:latest
+    container_name: api-scan-billing
+    restart: unless-stopped
+    environment:
+      PORT: "8080"
+      DATABASE_URL: "postgres://${POSTGRES_BILLING_USER:-billing}:${POSTGRES_BILLING_PASSWORD}@postgres-billing:5432/${POSTGRES_BILLING_DB:-billing_db}"
+      YOOKASSA_SHOP_ID: "${YOOKASSA_SHOP_ID:-}"
+      YOOKASSA_SECRET_KEY: "${YOOKASSA_SECRET_KEY:-}"
+      BILLING_SERVICE_TOKEN: "${BILLING_SERVICE_TOKEN:?BILLING_SERVICE_TOKEN required}"
+    depends_on:
+      postgres-billing:
+        condition: service_healthy
+    networks:
+      - api-scan-network
+    # Не доступен напрямую извне
+
+  billing-webhook-yookassa:
+    image: ${GHCR_REGISTRY:-ghcr.io}/${GHCR_REPOSITORY}/billing-webhook-yookassa:latest
+    container_name: api-scan-billing-webhook-yookassa
+    restart: unless-stopped
+    environment:
+      PORT: "8080"
+      DATABASE_URL: "postgres://${POSTGRES_BILLING_USER:-billing}:${POSTGRES_BILLING_PASSWORD}@postgres-billing:5432/${POSTGRES_BILLING_DB:-billing_db}"
+      YOOKASSA_SECRET_KEY: "${YOOKASSA_SECRET_KEY:-}"
+      IP_WHITELIST: "${YOOKASSA_IP_WHITELIST:-185.71.76.0/27,185.71.77.0/27,77.75.153.0/25}"
+    depends_on:
+      postgres-billing:
+        condition: service_healthy
+    networks:
+      - api-scan-network
+    # Доступен через nginx: api.aywaa.ru/webhooks/yookassa → localhost:8082
+    ports:
+      - "127.0.0.1:8082:8080"
+
+  cabinet:
+    image: ${GHCR_REGISTRY:-ghcr.io}/${GHCR_REPOSITORY}/cabinet:latest
+    container_name: api-scan-cabinet
+    restart: unless-stopped
+    environment:
+      PORT: "8080"
+      DATABASE_URL: "postgres://${POSTGRES_USER:-api_scan}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-api_scan}"
+      BILLING_URL: "http://billing:8080"
+      BILLING_SERVICE_TOKEN: "${BILLING_SERVICE_TOKEN}"
+      LEGAL_DOCS_PATH: "docs/legal"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      billing:
+        condition: service_started
+    networks:
+      - api-scan-network
+    # Доступен через nginx: cabinet.aywaa.ru → localhost:8084
+    ports:
+      - "127.0.0.1:8084:8080"
+
+  orchestrator:
+    image: ${GHCR_REGISTRY:-ghcr.io}/${GHCR_REPOSITORY}/orchestrator:latest
+    container_name: api-scan-orchestrator
+    restart: unless-stopped
+    environment:
+      PORT: "8080"
+      YANDEX_VISION_API_KEY: "${YANDEX_VISION_API_KEY:?YANDEX_VISION_API_KEY required}"
+      YANDEX_VISION_USE_V2: "${YANDEX_VISION_USE_V2:-true}"
+      YANDEX_VISION_MODEL: "${YANDEX_VISION_MODEL:-passport}"
+      YANDEX_FOLDER_ID: "${YANDEX_FOLDER_ID:?YANDEX_FOLDER_ID required}"
+      VK_VISION_API_KEY: "${VK_VISION_API_KEY:-}"
+      VK_FOLDER_ID: "${VK_FOLDER_ID:-}"
+      BILLING_API_URL: "http://billing:8080"
+      BILLING_SERVICE_TOKEN: "${BILLING_SERVICE_TOKEN}"
+      OCR_CONFIDENCE_THRESHOLD: "${OCR_CONFIDENCE_THRESHOLD:-0.80}"
+    depends_on:
+      billing:
+        condition: service_started
+    networks:
+      - api-scan-network
+    # Не доступен напрямую извне
+
+  api-gateway:
+    image: ${GHCR_REGISTRY:-ghcr.io}/${GHCR_REPOSITORY}/api-gateway:latest
+    container_name: api-scan-api-gateway
+    restart: unless-stopped
+    environment:
+      PORT: "8080"
+      DATABASE_URL: "postgres://${POSTGRES_USER:-api_scan}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-api_scan}"
+      REDIS_ADDR: "redis:6379"
+      ORCHESTRATOR_URL: "http://orchestrator:8080"
+      BILLING_URL: "http://billing:8080"
+      BILLING_WEBHOOK_URL: "http://billing-webhook-yookassa:8080"
+      CABINET_URL: "http://cabinet:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      billing:
+        condition: service_started
+      billing-webhook-yookassa:
+        condition: service_started
+      cabinet:
+        condition: service_started
+      orchestrator:
+        condition: service_started
+    networks:
+      - api-scan-network
+    # Доступен через nginx: api.aywaa.ru/v1/* → localhost:8080
+    ports:
+      - "127.0.0.1:8080:8080"
+
+volumes:
+  postgres_data:
+    driver: local
+  billing_data:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  api-scan-network:
+    driver: bridge
