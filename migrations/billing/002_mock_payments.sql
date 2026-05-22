@@ -1,5 +1,5 @@
-+goose Up
-+goose StatementBegin
+-- +goose Up
+-- +goose StatementBegin
 
 CREATE TABLE IF NOT EXISTS mock_payments (
     id SERIAL PRIMARY KEY,
@@ -15,11 +15,11 @@ CREATE TABLE IF NOT EXISTS mock_payments (
 CREATE INDEX idx_mock_payments_org_id ON mock_payments(org_id);
 CREATE INDEX idx_mock_payments_status ON mock_payments(status);
 
-+goose StatementEnd
+-- +goose StatementEnd
 
-+goose Down
-+goose StatementBegin
+-- +goose Down
+-- +goose StatementBegin
 
 DROP TABLE IF EXISTS mock_payments;
 
-+goose StatementEnd
+-- +goose StatementEnd
