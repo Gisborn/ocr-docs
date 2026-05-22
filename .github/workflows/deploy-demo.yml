@@ -1,8 +1,6 @@
 name: Deploy to Demo Server (Timeweb)
 
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
 
 env:
