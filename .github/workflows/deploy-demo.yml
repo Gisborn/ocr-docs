@@ -100,8 +100,11 @@ jobs:
             set -euo pipefail
             cd ~/api-scan
 
+            echo "=== Login to GHCR ==="
+            echo "${{ secrets.GHCR_PAT }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
             echo "=== Pulling latest images ==="
-            docker compose -f ${{ env.COMPOSE_FILE }} pull
+            docker compose -f infra/docker/docker-compose.demo.yml pull
 
             echo "=== Running database migrations ==="
             source .env
@@ -110,7 +113,7 @@ jobs:
             cd ~/api-scan
 
             echo "=== Starting services ==="
-            docker compose -f ${{ env.COMPOSE_FILE }} up -d --remove-orphans
+            docker compose -f infra/docker/docker-compose.demo.yml up -d --remove-orphans
 
             echo "=== Cleanup ==="
             docker system prune -f
