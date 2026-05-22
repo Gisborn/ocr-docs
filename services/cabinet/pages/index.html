@@ -218,7 +218,7 @@
                         <div class="value" id="realBalance">0</div>
                     </div>
                     <div class="stat-card">
-                        <h3>Предоплата (₽)</h3>
+                        <h3>Остаток пакета (оп.)</h3>
                         <div class="value" id="prepaidBalance">0</div>
                     </div>
                     <div class="stat-card">
@@ -465,7 +465,7 @@
                 
                 const data = await res.json();
                 document.getElementById('realBalance').textContent = data.real_balance_rub || 0;
-                document.getElementById('prepaidBalance').textContent = data.prepaid_balance_rub || 0;
+                document.getElementById('prepaidBalance').textContent = (data.prepaid_balance_rub || 0) + ' оп.';
                 document.getElementById('orgTariff').textContent = 'Active';
             } catch (e) {
                 console.error('Error loading balance:', e);
