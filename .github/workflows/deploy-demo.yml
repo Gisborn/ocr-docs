@@ -28,7 +28,7 @@ jobs:
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor | lower }}
+          username: ${{ lower(github.actor) }}
           password: ${{ secrets.GHCR_PAT }}
 
       - name: Build and push API Gateway
@@ -37,7 +37,7 @@ jobs:
           context: .
           file: ./services/api-gateway/Dockerfile
           push: true
-          tags: ${{ env.REGISTRY }}/${{ github.repository | lower }}/api-gateway:latest
+          tags: ${{ env.REGISTRY }}/${{ lower(github.repository) }}/api-gateway:latest
           cache-from: type=gha,scope=api-gateway
           cache-to: type=gha,mode=max,scope=api-gateway
 
@@ -47,7 +47,7 @@ jobs:
           context: .
           file: ./services/billing/Dockerfile
           push: true
-          tags: ${{ env.REGISTRY }}/${{ github.repository | lower }}/billing:latest
+          tags: ${{ env.REGISTRY }}/${{ lower(github.repository) }}/billing:latest
           cache-from: type=gha,scope=billing
           cache-to: type=gha,mode=max,scope=billing
 
@@ -57,7 +57,7 @@ jobs:
           context: .
           file: ./services/billing-webhook-yookassa/Dockerfile
           push: true
-          tags: ${{ env.REGISTRY }}/${{ github.repository | lower }}/billing-webhook-yookassa:latest
+          tags: ${{ env.REGISTRY }}/${{ lower(github.repository) }}/billing-webhook-yookassa:latest
           cache-from: type=gha,scope=billing-webhook
           cache-to: type=gha,mode=max,scope=billing-webhook
 
@@ -67,7 +67,7 @@ jobs:
           context: .
           file: ./services/cabinet/Dockerfile
           push: true
-          tags: ${{ env.REGISTRY }}/${{ github.repository | lower }}/cabinet:latest
+          tags: ${{ env.REGISTRY }}/${{ lower(github.repository) }}/cabinet:latest
           cache-from: type=gha,scope=cabinet
           cache-to: type=gha,mode=max,scope=cabinet
 
@@ -77,7 +77,7 @@ jobs:
           context: .
           file: ./services/orchestrator/Dockerfile
           push: true
-          tags: ${{ env.REGISTRY }}/${{ github.repository | lower }}/orchestrator:latest
+          tags: ${{ env.REGISTRY }}/${{ lower(github.repository) }}/orchestrator:latest
           cache-from: type=gha,scope=orchestrator
           cache-to: type=gha,mode=max,scope=orchestrator
 
@@ -101,7 +101,7 @@ jobs:
             cd ~/api-scan
 
             echo "=== Login to GHCR ==="
-            echo "${{ secrets.GHCR_PAT }}" | docker login ghcr.io -u ${{ github.actor | lower }} --password-stdin
+            echo "${{ secrets.GHCR_PAT }}" | docker login ghcr.io -u ${{ lower(github.actor) }} --password-stdin
 
             echo "=== Pulling latest images ==="
             docker compose -f infra/docker/docker-compose.demo.yml pull
