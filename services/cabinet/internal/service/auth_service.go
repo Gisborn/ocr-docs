@@ -84,7 +84,7 @@ func (s *AuthService) Register(ctx context.Context, req *RegisterRequest) (*Regi
 		Name:            req.OrganizationName,
 		Email:           strings.ToLower(req.Email),
 		PasswordHash:    string(passwordHash),
-		Status:          "pending", // Ожидает подтверждения email
+		Status:          "active", // Автоактивация для демо
 		AcceptedTermsAt: &now,
 	}
 
