@@ -34,7 +34,7 @@ func NewAuthService(repo repository.Repository, billingURL, billingToken string)
 
 // RegisterRequest запрос на регистрацию
 type RegisterRequest struct {
-	OrganizationName string `json:"organization_name"`
+	OrganizationName string `json:"org_name"`
 	Email            string `json:"email"`
 	Password         string `json:"password"`
 	AcceptedTerms    bool   `json:"accepted_terms"`
