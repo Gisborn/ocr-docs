@@ -76,8 +76,8 @@ services:
   # ── Application Services ─────────────────────────────────────────
   billing:
     build:
-      context: ..
-      dockerfile: ../services/billing/Dockerfile
+      context: ../..
+      dockerfile: services/billing/Dockerfile
     image: ${GHCR_REGISTRY:-ghcr.io}/${GHCR_REPOSITORY}/billing:latest
     container_name: api-scan-billing
     restart: unless-stopped
@@ -96,8 +96,8 @@ services:
 
   billing-webhook-yookassa:
     build:
-      context: ..
-      dockerfile: ../services/billing-webhook-yookassa/Dockerfile
+      context: ../..
+      dockerfile: services/billing-webhook-yookassa/Dockerfile
     image: ${GHCR_REGISTRY:-ghcr.io}/${GHCR_REPOSITORY}/billing-webhook-yookassa:latest
     container_name: api-scan-billing-webhook-yookassa
     restart: unless-stopped
@@ -137,8 +137,8 @@ services:
 
   orchestrator:
     build:
-      context: ..
-      dockerfile: ../services/orchestrator/Dockerfile
+      context: ../..
+      dockerfile: services/orchestrator/Dockerfile
     image: ${GHCR_REGISTRY:-ghcr.io}/${GHCR_REPOSITORY}/orchestrator:latest
     container_name: api-scan-orchestrator
     restart: unless-stopped
@@ -162,8 +162,8 @@ services:
 
   api-gateway:
     build:
-      context: ..
-      dockerfile: ../services/api-gateway/Dockerfile
+      context: ../..
+      dockerfile: services/api-gateway/Dockerfile
     image: ${GHCR_REGISTRY:-ghcr.io}/${GHCR_REPOSITORY}/api-gateway:latest
     container_name: api-scan-api-gateway
     restart: unless-stopped
