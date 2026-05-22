@@ -770,7 +770,7 @@
         <p style="margin-bottom:16px;color:var(--text-secondary)">В демо-режиме баланс пополняется мгновенно без реальной оплаты.</p>
         <div class="form-group">
             <label>Сумма пополнения</label>
-            <input type="number" id="topupAmount" readonly>
+            <input type="number" id="topupAmount" placeholder="Введите сумму">
         </div>
         <div class="modal-actions">
             <button class="btn btn-outline" onclick="hideModal('topupModal')">Отмена</button>
@@ -895,7 +895,9 @@ async function loadBalance() {
 }
 
 function showTopupModal(amount) {
-    document.getElementById('topupAmount').value = amount || '';
+    const input = document.getElementById('topupAmount');
+    input.value = amount || '';
+    input.readOnly = !!amount;
     document.getElementById('topupModal').classList.add('active');
 }
 function hideModal(id) { document.getElementById(id).classList.remove('active'); }
@@ -906,6 +908,7 @@ function topupCustom() {
 }
 async function confirmTopup() {
     const amount = parseInt(document.getElementById('topupAmount').value);
+    if (!amount || amount < 100) return alert('Минимальная сумма пополнения 100 ₽');
     try {
         const res = await fetch(`${API_BASE}/api/v1/payments/mock`, {
             method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + sessionToken },
