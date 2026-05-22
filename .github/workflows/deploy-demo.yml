@@ -109,8 +109,8 @@ jobs:
             echo "=== Running database migrations ==="
             export PATH=$PATH:$HOME/go/bin
             source .env
-            cd ~/api-scan/migrations/main && goose postgres "postgres://${POSTGRES_USER:-api_scan}:${POSTGRES_PASSWORD}@localhost:5432/${POSTGRES_DB:-api_scan}?sslmode=disable" up
-            cd ~/api-scan/migrations/billing && goose postgres "postgres://${POSTGRES_BILLING_USER:-billing}:${POSTGRES_BILLING_PASSWORD}@localhost:5432/${POSTGRES_BILLING_DB:-billing_db}?sslmode=disable" up
+            cd ~/api-scan/migrations/main && goose postgres "postgres://${POSTGRES_USER:-api_scan}:${POSTGRES_PASSWORD}@localhost:15432/${POSTGRES_DB:-api_scan}?sslmode=disable" up
+            cd ~/api-scan/migrations/billing && goose postgres "postgres://${POSTGRES_BILLING_USER:-billing}:${POSTGRES_BILLING_PASSWORD}@localhost:15433/${POSTGRES_BILLING_DB:-billing_db}?sslmode=disable" up
             cd ~/api-scan
 
             echo "=== Starting services ==="
