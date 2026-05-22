@@ -1,12 +1,14 @@
 # Demo Docker Compose для API-Scan
-# Используется на Timeweb сервере с существующим nginx + certbot
+# Используется на Timeweb сервере с существующим jwilder/nginx-proxy + letsencrypt
 #
-# Все порты замаплены только на 127.0.0.1 (localhost),
-# чтобы nginx проксировал трафик, а прямой доступ извне был закрыт.
+# Контейнеры подключаются к внешней Docker-сети "net",
+# где работает reverse-proxy (jwilder/nginx-proxy) и letsencrypt-helper.
+# Доступ извне автоматически настраивается через переменные окружения:
+#   VIRTUAL_HOST, LETSENCRYPT_HOST, LETSENCRYPT_EMAIL
 #
 # Требования на сервере:
 # - Docker + Docker Compose plugin
-# - nginx с Let's Encrypt (certbot)
+# - jwilder/nginx-proxy + jrcs/letsencrypt-nginx-proxy-companion (уже запущены)
 # - Go + goose для миграций БД
 # - Поддомены api.aywaa.ru и cabinet.aywaa.ru → A-запись на 89.223.68.18
 
@@ -32,7 +34,7 @@ services:
       retries: 5
       start_period: 10s
     networks:
-      - api-scan-network
+      - net
 
   postgres-billing:
     image: postgres:16-alpine
@@ -53,7 +55,7 @@ services:
       retries: 5
       start_period: 10s
     networks:
-      - api-scan-network
+      - net
 
   redis:
     image: redis:7-alpine
@@ -69,7 +71,7 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - api-scan-network
+      - net
 
   # ── Application Services ─────────────────────────────────────────
   billing:
@@ -86,7 +88,7 @@ services:
       postgres-billing:
         condition: service_healthy
     networks:
-      - api-scan-network
+      - net
     # Не доступен напрямую извне
 
   billing-webhook-yookassa:
@@ -102,10 +104,8 @@ services:
       postgres-billing:
         condition: service_healthy
     networks:
-      - api-scan-network
-    # Доступен через nginx: api.aywaa.ru/webhooks/yookassa → localhost:8082
-    ports:
-      - "127.0.0.1:8082:8080"
+      - net
+    # Webhook'и — только внутри Docker-сети (для демо не выставляем наружу)
 
   cabinet:
     image: ${GHCR_REGISTRY:-ghcr.io}/${GHCR_REPOSITORY}/cabinet:latest
@@ -117,16 +117,17 @@ services:
       BILLING_URL: "http://billing:8080"
       BILLING_SERVICE_TOKEN: "${BILLING_SERVICE_TOKEN}"
       LEGAL_DOCS_PATH: "docs/legal"
+      VIRTUAL_HOST: "${CABINET_DOMAIN:-cabinet.aywaa.ru}"
+      LETSENCRYPT_HOST: "${CABINET_DOMAIN:-cabinet.aywaa.ru}"
+      LETSENCRYPT_EMAIL: "${LETSENCRYPT_EMAIL:-support@aywaa.ru}"
     depends_on:
       postgres:
         condition: service_healthy
       billing:
         condition: service_started
     networks:
-      - api-scan-network
-    # Доступен через nginx: cabinet.aywaa.ru → localhost:8084
-    ports:
-      - "127.0.0.1:8084:8080"
+      - net
+    # Доступен через nginx-proxy: cabinet.aywaa.ru
 
   orchestrator:
     image: ${GHCR_REGISTRY:-ghcr.io}/${GHCR_REPOSITORY}/orchestrator:latest
@@ -147,7 +148,7 @@ services:
       billing:
         condition: service_started
     networks:
-      - api-scan-network
+      - net
     # Не доступен напрямую извне
 
   api-gateway:
@@ -162,6 +163,9 @@ services:
       BILLING_URL: "http://billing:8080"
       BILLING_WEBHOOK_URL: "http://billing-webhook-yookassa:8080"
       CABINET_URL: "http://cabinet:8080"
+      VIRTUAL_HOST: "${API_DOMAIN:-api.aywaa.ru}"
+      LETSENCRYPT_HOST: "${API_DOMAIN:-api.aywaa.ru}"
+      LETSENCRYPT_EMAIL: "${LETSENCRYPT_EMAIL:-support@aywaa.ru}"
     depends_on:
       postgres:
         condition: service_healthy
@@ -176,10 +180,8 @@ services:
       orchestrator:
         condition: service_started
     networks:
-      - api-scan-network
-    # Доступен через nginx: api.aywaa.ru/v1/* → localhost:8080
-    ports:
-      - "127.0.0.1:8080:8080"
+      - net
+    # Доступен через nginx-proxy: api.aywaa.ru
 
 volumes:
   postgres_data:
