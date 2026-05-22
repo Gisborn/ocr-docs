@@ -390,12 +390,60 @@ docker exec -it api-scan-postgres-billing psql -U billing -d billing_db -c \
    VALUES (1, 'balance_topup', 10000, NOW());"
 ```
 
+## Тестирование демо-деплоя
+
+Демо развёрнуто на сервере `89.223.68.18` (Timeweb).
+
+```bash
+# Проверка health через интернет
+curl https://api.adocs.ru/health
+curl https://lk.adocs.ru/health
+
+# Регистрация нового пользователя (авто-активация аккаунта)
+curl -X POST https://lk.adocs.ru/api/v1/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "user@example.com",
+    "password": "password",
+    "organization_name": "ООО Пример",
+    "accepted_terms": true
+  }'
+
+# Вход
+curl -X POST https://lk.adocs.ru/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"user@example.com","password":"password"}'
+
+# Создание API ключа (используйте session_token из ответа login)
+curl -X POST https://lk.adocs.ru/api/v1/api-keys \
+  -H "Authorization: Bearer <session_token>" \
+  -H "Content-Type: application/json" \
+  -d '{"name": "Demo Key"}'
+
+# Пополнение баланса (demo mock)
+curl -X POST https://lk.adocs.ru/api/v1/mock-payments \
+  -H "Authorization: Bearer <session_token>" \
+  -H "Content-Type: application/json" \
+  -d '{"amount_rub": 1000}'
+
+# Проверка баланса через API Gateway
+curl https://api.adocs.ru/v1/billing/accounts/me/balance \
+  -H "X-Api-Key: <api_key>"
+```
+
+**Юридические документы:**
+- Политика конфиденциальности: https://lk.adocs.ru/legal/privacy
+- Условия использования: https://lk.adocs.ru/legal/terms
+
+---
+
 ## Следующие шаги
 
 1. ✅ Регистрация и вход работают
 2. ✅ API ключи создаются
 3. ✅ Биллинг (reserve/commit) работает
 4. ✅ Подписки можно создавать
-5. ⏳ Продакшен: настроить реальную ЮКассу с ngrok
-6. ⏳ Продакшен: настроить email верификацию
-7. ⏳ Продакшен: SSL сертификаты
+5. ✅ Демо-деплой завершён (SSL, домены, Docker)
+6. ⏳ Продакшен: настроить реальную ЮКассу
+7. ⏳ Продакшен: настроить email верификацию
+8. ⏳ Продакшен: Yandex Cloud

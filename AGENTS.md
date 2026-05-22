@@ -3,7 +3,7 @@
 > Проект: Облачный OCR-сервис распознавания паспортов РФ  
 > Статус: MVP (реализован, протестирован)  
 > Язык документации: Русский
-> Последнее обновление: 2026-05-21
+> Последнее обновление: 2026-05-22
 
 ---
 
@@ -37,6 +37,13 @@
 | Cabinet Service | ✅ Работает | 8084 (18084 на Windows) | Web UI, управление API ключами |
 | Orchestrator | ✅ Работает | 8083 (18083 на Windows) | OCR обработка |
 
+**Демо-деплой завершён!**
+- Сервер: Timeweb microserver, Ubuntu 24.04, IP `89.223.68.18`
+- Домены: `api.adocs.ru` (API Gateway), `lk.adocs.ru` (Личный кабинет)
+- SSL: Let's Encrypt через jwilder/nginx-proxy + letsencrypt-nginx-proxy-companion
+- Все 5 сервисов работают в Docker-контейнерах, миграции применены
+- CI/CD: деплой через `workflow_dispatch` (ручной запуск)
+
 **Ключевые документы:**
 - `README.md` — главная документация, quick start
 - `LOCAL_TESTING.md` — руководство по тестированию
@@ -45,9 +52,45 @@
 
 ---
 
+## Демо-деплой
+
+Демо-стенд развёрнут на VPS Timeweb и доступен по доменам `api.adocs.ru` и `lk.adocs.ru`.
+
+| Параметр | Значение |
+|----------|----------|
+| Сервер | Timeweb microserver, Ubuntu 24.04 |
+| IP | `89.223.68.18` |
+| API Gateway | `https://api.adocs.ru` |
+| Личный кабинет | `https://lk.adocs.ru` |
+| Reverse Proxy | `jwilder/nginx-proxy` + `letsencrypt-nginx-proxy-companion` |
+| SSL | Let's Encrypt (автообновление) |
+| Docker Compose | `infra/docker/docker-compose.demo.yml` |
+| Сеть | `net` (общая с nginx-proxy) |
+| БД | PostgreSQL main (`15432`), billing (`15433`) |
+
+**Особенности деплоя:**
+- Сборка образов выполняется вручную на сервере (GitHub Actions PAT-проблемы решены через `GHCR_PAT`)
+- Workflow `.github/workflows/deploy-demo.yml` — только ручной запуск (`workflow_dispatch`)
+- Production workflow `.github/workflows/deploy.yml.disabled` — отключён до переезда в Yandex Cloud
+- Миграции main и billing применены
+- Для демо-режима добавлена таблица `mock_payments` (миграция `002_mock_payments.sql`)
+
+---
+
 ## Планируемый технологический стек
 
-### Инфраструктура (Yandex Cloud, регион РФ)
+### Инфраструктура
+
+**Демо (текущее):** Docker Compose на VPS (Timeweb)
+| Компонент | Технология | Назначение |
+|-----------|------------|------------|
+| Сервер | Timeweb microserver, Ubuntu 24.04 | Хостинг контейнеров |
+| Reverse Proxy | jwilder/nginx-proxy + letsencrypt-nginx-proxy-companion | TLS, маршрутизация |
+| База данных | PostgreSQL 16 (Docker) | Две БД: main + billing |
+| Кэш | Redis 7 (Docker) | Rate limiting, сессии |
+| Secrets | `.env` файл на сервере | Переменные окружения |
+
+**Production (планируется):** Yandex Cloud, регион РФ
 | Компонент | Технология | Назначение |
 |-----------|------------|------------|
 | Вычисления | Yandex Serverless Container | Core Orchestrator |
@@ -156,6 +199,7 @@ JSON-ответ → Клиент
 | `reservations` | Активные PENDING-резервы |
 | `payment_orders` | Заказы на пополнение через ЮКассу |
 | `account_events` | История событий аккаунта (append-only) |
+| `mock_payments` | Тестовые пополнения баланса (демо-режим) |
 
 ### Типы тарифов
 - **`on_demand`** — оплата по факту использования
@@ -218,16 +262,24 @@ file: <image_file>
 
 Проект разбит на 8 этапов:
 
-| Этап | Название | Задачи |
-|------|----------|--------|
-| 0 | Инфраструктура | Yandex Cloud, квоты OCR, DPA, CI/CD |
-| 1 | База данных | Managed PostgreSQL, миграции |
-| 2 | Core Orchestrator | OCR-адаптеры, нормализатор, очередь |
-| 3 | Billing Service | Резервирование, фиксация, идемпотентность |
-| 4 | API Gateway | Аутентификация, rate-limiting |
-| 5 | API v1 | Эндпоинт `/v1/recognize` |
-| 6 | Личный кабинет | Регистрация, ключи, баланс, ЮКасса |
-| 7 | Тестирование и запуск | Нагрузочное, приёмочное, production |
+| Этап | Название | Задачи | Статус |
+|------|----------|--------|--------|
+| 0 | Инфраструктура | Yandex Cloud, квоты OCR, DPA, CI/CD | ✅ Демо-инфраструктура готова (Docker Compose на VPS) |
+| 1 | База данных | Managed PostgreSQL, миграции | ✅ Миграции main + billing применены |
+| 2 | Core Orchestrator | OCR-адаптеры, нормализатор, очередь | ✅ Адаптеры реализованы (тестирование с реальными ключами — в процессе) |
+| 3 | Billing Service | Резервирование, фиксация, идемпотентность | ✅ Двухфазная модель работает, mock-пополнения добавлены |
+| 4 | API Gateway | Аутентификация, rate-limiting | ✅ Работает на `api.adocs.ru` |
+| 5 | API v1 | Эндпоинт `/v1/recognize` | ✅ Синхронный флоу готов |
+| 6 | Личный кабинет | Регистрация, ключи, баланс, ЮКасса | 🟡 UI + API готовы, email-верификация — НЕ готова |
+| 7 | Тестирование и запуск | Нагрузочное, приёмочное, production | ⏳ Демо-деплой завершён, production — в планах |
+
+**Новые задачи после MVP:**
+- Лендинг `adocs.ru`
+- Email-верификация при регистрации
+- Отчёт о потреблении (Usage report): API + UI с графиками и XLSX-экспортом
+- Production-деплой в Yandex Cloud
+- Интеграция с реальными OCR API (Yandex Vision, VK Vision)
+- Фискализация чеков (54-ФЗ)
 
 ---
 
@@ -293,6 +345,8 @@ file: <image_file>
 | 3 | Определение порога confidence OCR | Средний |
 | 4 | Схема уведомлений при низком балансе | Средний |
 | 5 | Фискализация чеков (54-ФЗ) | Высокий |
+| 6 | Email-верификация и SMTP | Средний |
+| 7 | GitHub Actions CI/CD (автоматический деплой) | Средний |
 
 ---
 

@@ -5,14 +5,38 @@
 ## Table of Contents
 
 1. [Architecture Overview](#architecture-overview)
-2. [Technology Stack](#technology-stack)
-3. [Services](#services)
-4. [API Documentation](#api-documentation)
-5. [Business Processes](#business-processes)
-6. [Testing](#testing)
-7. [Getting Started](#getting-started)
-8. [Security](#security)
-9. [Monitoring](#monitoring)
+2. [Demo Deployment](#demo-deployment)
+3. [Technology Stack](#technology-stack)
+4. [Services](#services)
+5. [API Documentation](#api-documentation)
+6. [Business Processes](#business-processes)
+7. [Testing](#testing)
+8. [Getting Started](#getting-started)
+9. [Security](#security)
+10. [Monitoring](#monitoring)
+
+---
+
+## Demo Deployment
+
+A demo instance is deployed on a Timeweb VPS (Ubuntu 24.04) and accessible via HTTPS:
+
+| Service | URL |
+|---------|-----|
+| Cabinet Web UI | https://lk.adocs.ru |
+| API Gateway | https://api.adocs.ru |
+
+**Infrastructure:**
+- Server: Timeweb microserver, IP `89.223.68.18`
+- Reverse proxy: `jwilder/nginx-proxy` + `letsencrypt-nginx-proxy-companion` (Let's Encrypt)
+- Docker network `net` shared with nginx-proxy
+- All 5 services run in Docker containers via `infra/docker/docker-compose.demo.yml`
+- Database migrations applied (main + billing)
+- Demo top-ups supported via `mock_payments` table
+
+**Deploy workflow:**
+- `.github/workflows/deploy-demo.yml` — manual trigger (`workflow_dispatch`)
+- `.github/workflows/deploy.yml.disabled` — production workflow (disabled)
 
 ---
 
@@ -80,8 +104,8 @@
 | Billing Webhook | 8082 | billing_db | YooKassa webhook handler |
 | Orchestrator | 8083 | - | OCR processing, Yandex/VK Vision |
 | Cabinet | 8084 | api_scan_main | Personal account, API keys, Web UI |
-| PostgreSQL (main) | 5432 | api_scan | Organizations, users, keys, sessions |
-| PostgreSQL (billing) | 5433 | billing_db | Accounts, transactions, billing |
+| PostgreSQL (main) | 5432 / 15432 (demo) | api_scan | Organizations, users, keys, sessions |
+| PostgreSQL (billing) | 5433 / 15433 (demo) | billing_db | Accounts, transactions, billing |
 | Redis | 6379 | - | Cache, rate limiting, sessions |
 
 ---
@@ -152,9 +176,10 @@ Balance = Snapshot Balance + Events Since Snapshot - Active Reservations
 - Web UI at `/`
 - Swagger docs at `/swagger/`
 
-**Test Credentials**:
-- Email: `test@example.com`
-- Password: `password`
+**Registration:**
+- Auto-registration works; no default test account needed
+- Registration requires `accepted_terms: true`
+- Billing account created automatically with `status: active`
 
 **Endpoints**:
 | Endpoint | Method | Auth | Description |
@@ -165,6 +190,8 @@ Balance = Snapshot Balance + Events Since Snapshot - Active Reservations
 | `/api/v1/auth/logout` | POST | Session | Logout |
 | `/api/v1/api-keys` | GET | Session | List keys |
 | `/api/v1/api-keys` | POST | Session | Create key |
+| `/legal/privacy` | GET | No | Privacy policy (`text/markdown`) |
+| `/legal/terms` | GET | No | Terms of service (`text/markdown`) |
 
 ---
 
@@ -286,23 +313,30 @@ make logs
 make docker-down
 ```
 
-### Access Points
+### Demo URLs
+
+| Service | URL | Description |
+|---------|-----|-------------|
+| Cabinet Web UI | https://lk.adocs.ru | Личный кабинет (production-like demo) |
+| API Gateway | https://api.adocs.ru | API entry point |
+
+### Local Access Points
 
 | Service | URL | Credentials |
 |---------|-----|-------------|
-| Cabinet Web UI | http://localhost:8084/ | test@example.com / password |
+| Cabinet Web UI | http://localhost:8084/ | Register a new account |
 | API Gateway Swagger | http://localhost:8080/swagger/ | - |
 | Billing Swagger | http://localhost:8081/swagger/ | - |
 | Cabinet Swagger | http://localhost:8084/swagger/ | - |
 
 ### Environment Variables
 
-Copy `.env.example` to `.env` and configure:
+Copy `.env.example` to `.env` and configure. For demo deployment, see `infra/docker/docker-compose.demo.yml`:
 
 ```bash
 # Database
-DATABASE_URL=postgres://api_scan:api_scan_secret@localhost:5432/api_scan
-BILLING_DATABASE_URL=postgres://billing:billing_secret@localhost:5433/billing_db
+DATABASE_URL=postgres://api_scan:api_scan_secret@localhost:15432/api_scan
+BILLING_DATABASE_URL=postgres://billing:billing_secret@localhost:15433/billing_db
 
 # Services
 BILLING_URL=http://billing:8080
