@@ -123,8 +123,9 @@ services:
       BILLING_URL: "http://billing:8080"
       BILLING_SERVICE_TOKEN: "${BILLING_SERVICE_TOKEN}"
       LEGAL_DOCS_PATH: "docs/legal"
-      VIRTUAL_HOST: "${CABINET_DOMAIN:-cabinet.aywaa.ru}"
-      LETSENCRYPT_HOST: "${CABINET_DOMAIN:-cabinet.aywaa.ru}"
+      VIRTUAL_HOST: "${CABINET_DOMAIN:-lk.adocs.ru}"
+      VIRTUAL_PORT: "8080"
+      LETSENCRYPT_HOST: "${CABINET_DOMAIN:-lk.adocs.ru}"
       LETSENCRYPT_EMAIL: "${LETSENCRYPT_EMAIL:-support@aywaa.ru}"
     depends_on:
       postgres:
@@ -175,8 +176,8 @@ services:
       BILLING_URL: "http://billing:8080"
       BILLING_WEBHOOK_URL: "http://billing-webhook-yookassa:8080"
       CABINET_URL: "http://cabinet:8080"
-      VIRTUAL_HOST: "${API_DOMAIN:-api.aywaa.ru}"
-      LETSENCRYPT_HOST: "${API_DOMAIN:-api.aywaa.ru}"
+      VIRTUAL_HOST: "${API_DOMAIN:-api.adocs.ru}"
+      LETSENCRYPT_HOST: "${API_DOMAIN:-api.adocs.ru}"
       LETSENCRYPT_EMAIL: "${LETSENCRYPT_EMAIL:-support@aywaa.ru}"
     depends_on:
       postgres:
