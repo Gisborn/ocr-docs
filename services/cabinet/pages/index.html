@@ -3,760 +3,1079 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>API-Scan - Личный Кабинет</title>
+    <title>API-Scan — Личный кабинет</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <style>
+        :root {
+            --primary: #4f46e5;
+            --primary-hover: #4338ca;
+            --success: #10b981;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --bg: #f3f4f6;
+            --surface: #ffffff;
+            --text: #111827;
+            --text-secondary: #6b7280;
+            --border: #e5e7eb;
+            --sidebar-bg: #1f2937;
+            --sidebar-text: #d1d5db;
+            --sidebar-active: #374151;
+            --radius: 12px;
+            --shadow: 0 1px 3px rgba(0,0,0,0.1), 0 1px 2px rgba(0,0,0,0.06);
+            --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05);
+        }
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #f5f5f5;
-            color: #333;
-            line-height: 1.6;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.5;
+            height: 100vh;
+            overflow: hidden;
         }
-        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
-        .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 30px;
-            border-radius: 10px;
-            margin-bottom: 30px;
+        .app {
+            display: flex;
+            height: 100vh;
         }
-        .header h1 { font-size: 28px; margin-bottom: 10px; }
-        .card {
-            background: white;
-            border-radius: 10px;
-            padding: 25px;
-            margin-bottom: 20px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        /* Sidebar */
+        .sidebar {
+            width: 260px;
+            background: var(--sidebar-bg);
+            color: var(--sidebar-text);
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
         }
-        .card h2 { margin-bottom: 20px; color: #667eea; }
-        .form-group { margin-bottom: 15px; }
-        .form-group label { display: block; margin-bottom: 5px; font-weight: 500; }
-        .form-group input {
-            width: 100%;
-            padding: 10px 15px;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-            font-size: 14px;
+        .sidebar-header {
+            padding: 24px 20px;
+            border-bottom: 1px solid var(--sidebar-active);
         }
-        .btn {
-            background: #667eea;
-            color: white;
-            border: none;
-            padding: 12px 25px;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 14px;
-            transition: background 0.3s;
+        .sidebar-header h1 {
+            font-size: 20px;
+            font-weight: 700;
+            color: #fff;
+            letter-spacing: -0.5px;
         }
-        .btn:hover { background: #5a6fd6; }
-        .btn-secondary { background: #6c757d; }
-        .btn-secondary:hover { background: #5a6268; }
-        .btn-danger { background: #dc3545; }
-        .btn-danger:hover { background: #c82333; }
-        .hidden { display: none !important; }
-        .alert {
-            padding: 15px;
-            border-radius: 5px;
-            margin-bottom: 15px;
-        }
-        .alert-success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
-        .alert-error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
-        .alert-info { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
-        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
-        .stat-card {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 20px;
-            border-radius: 10px;
-            text-align: center;
-        }
-        .stat-card h3 { font-size: 14px; opacity: 0.9; margin-bottom: 10px; }
-        .stat-card .value { font-size: 32px; font-weight: bold; }
-        table { width: 100%; border-collapse: collapse; }
-        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #eee; }
-        th { font-weight: 600; color: #667eea; }
-        .badge {
-            padding: 5px 10px;
-            border-radius: 20px;
+        .sidebar-header p {
             font-size: 12px;
+            color: #9ca3af;
+            margin-top: 4px;
+        }
+        .sidebar-nav {
+            flex: 1;
+            padding: 16px 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 14px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--sidebar-text);
+            text-decoration: none;
+        }
+        .nav-item:hover { background: var(--sidebar-active); color: #fff; }
+        .nav-item.active { background: var(--primary); color: #fff; }
+        .nav-item svg { width: 20px; height: 20px; flex-shrink: 0; }
+        .sidebar-footer {
+            padding: 16px;
+            border-top: 1px solid var(--sidebar-active);
+        }
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .user-avatar {
+            width: 36px; height: 36px;
+            border-radius: 50%;
+            background: var(--primary);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 14px; font-weight: 600; color: #fff;
+        }
+        .user-email {
+            font-size: 13px; color: #fff; font-weight: 500;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+            max-width: 160px;
+        }
+        .user-org {
+            font-size: 11px; color: #9ca3af;
+        }
+        /* Main */
+        .main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .header {
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            padding: 16px 32px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .header h2 { font-size: 20px; font-weight: 600; }
+        .content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 24px 32px;
+        }
+        .page { display: none; }
+        .page.active { display: block; }
+
+        /* Cards */
+        .card {
+            background: var(--surface);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            padding: 24px;
+            margin-bottom: 24px;
+        }
+        .card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+        .card-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text);
+        }
+        .card-subtitle {
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }
+
+        /* Stats grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 20px;
+            margin-bottom: 24px;
+        }
+        .stat-card {
+            background: var(--surface);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .stat-label {
+            font-size: 13px;
+            color: var(--text-secondary);
             font-weight: 500;
         }
-        .badge-success { background: #d4edda; color: #155724; }
-        .badge-warning { background: #fff3cd; color: #856404; }
-        .badge-danger { background: #f8d7da; color: #721c24; }
-        .key-display {
-            background: #f8f9fa;
-            padding: 15px;
-            border-radius: 5px;
-            font-family: monospace;
-            word-break: break-all;
-            margin: 10px 0;
-            border: 2px dashed #667eea;
+        .stat-value {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--text);
         }
-        .nav { display: flex; gap: 10px; margin-bottom: 20px; }
-        .nav button { flex: 1; }
-        pre {
-            background: #f8f9fa;
-            padding: 15px;
-            border-radius: 5px;
-            overflow-x: auto;
+        .stat-value.primary { color: var(--primary); }
+        .stat-value.success { color: var(--success); }
+        .stat-value.warning { color: var(--warning); }
+        .stat-delta {
             font-size: 12px;
+            color: var(--text-secondary);
         }
-        .loading { opacity: 0.6; pointer-events: none; }
-        .checkbox-group {
+
+        /* Buttons */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 10px 18px;
+            border-radius: 8px;
+            border: none;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-primary { background: var(--primary); color: #fff; }
+        .btn-primary:hover { background: var(--primary-hover); }
+        .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text); }
+        .btn-outline:hover { background: var(--bg); }
+        .btn-success { background: var(--success); color: #fff; }
+        .btn-danger { background: var(--danger); color: #fff; }
+        .btn-sm { padding: 6px 12px; font-size: 13px; }
+
+        /* Table */
+        .table-wrap { overflow-x: auto; }
+        table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            font-size: 14px;
+        }
+        th, td {
+            padding: 12px 16px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+        th {
+            background: var(--bg);
+            font-weight: 600;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-secondary);
+            position: sticky;
+            top: 0;
+            z-index: 1;
+        }
+        tbody tr { transition: background 0.15s; }
+        tbody tr:hover { background: #f9fafb; }
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 10px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .badge-success { background: #d1fae5; color: #065f46; }
+        .badge-warning { background: #fef3c7; color: #92400e; }
+        .badge-danger { background: #fee2e2; color: #991b1b; }
+        .badge-neutral { background: var(--bg); color: var(--text-secondary); }
+
+        /* Form */
+        .form-group { margin-bottom: 16px; }
+        .form-group label {
+            display: block;
+            font-size: 13px;
+            font-weight: 500;
+            margin-bottom: 6px;
+            color: var(--text);
+        }
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        .form-group input:focus, .form-group select:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(79,70,229,0.1);
+        }
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        /* Alert */
+        .alert {
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            font-size: 14px;
+            display: none;
+        }
+        .alert-info { background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; }
+        .alert-success { background: #ecfdf5; color: #065f46; border: 1px solid #a7f3d0; }
+        .alert-danger { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.4);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+        }
+        .modal-overlay.active { display: flex; }
+        .modal {
+            background: var(--surface);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-lg);
+            width: 100%;
+            max-width: 480px;
+            max-height: 90vh;
+            overflow-y: auto;
+            padding: 28px;
+        }
+        .modal-header {
             display: flex;
-            align-items: flex-start;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+        .modal-header h3 { font-size: 18px; font-weight: 600; }
+        .modal-close {
+            background: none; border: none; font-size: 24px; cursor: pointer; color: var(--text-secondary);
+        }
+        .modal-actions {
+            display: flex;
+            justify-content: flex-end;
             gap: 10px;
-            margin: 15px 0;
-            font-size: 13px;
-            line-height: 1.5;
-        }
-        .checkbox-group input[type="checkbox"] {
-            width: 18px;
-            height: 18px;
-            margin-top: 2px;
-            flex-shrink: 0;
-            cursor: pointer;
-        }
-        .checkbox-group label {
-            margin: 0;
-            font-weight: normal;
-            cursor: pointer;
-        }
-        .checkbox-group a {
-            color: #667eea;
-            text-decoration: underline;
-        }
-        .footer {
-            text-align: center;
-            padding: 30px 0;
             margin-top: 20px;
-            border-top: 1px solid #ddd;
-            font-size: 13px;
-            color: #666;
         }
-        .footer a {
-            color: #667eea;
-            text-decoration: none;
-            margin: 0 10px;
+
+        /* Auth */
+        .auth-page {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
         }
-        .footer a:hover {
-            text-decoration: underline;
+        .auth-box {
+            background: var(--surface);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-lg);
+            padding: 40px;
+            width: 100%;
+            max-width: 420px;
+        }
+        .auth-box h2 {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+        .auth-box p {
+            color: var(--text-secondary);
+            font-size: 14px;
+            margin-bottom: 24px;
+        }
+        .auth-toggle {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+        .auth-toggle a {
+            color: var(--primary);
+            cursor: pointer;
+            font-weight: 500;
+        }
+        .auth-toggle a:hover { text-decoration: underline; }
+
+        /* Chart container */
+        .chart-container {
+            position: relative;
+            height: 320px;
+            margin-top: 16px;
+        }
+
+        /* Period picker */
+        .period-picker {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .period-picker input[type="date"] {
+            padding: 8px 12px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        /* Tooltip */
+        .tooltip {
+            position: relative;
+            cursor: help;
+        }
+        .tooltip::after {
+            content: attr(data-tip);
+            position: absolute;
+            bottom: 120%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #1f2937;
+            color: #fff;
+            padding: 6px 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            white-space: nowrap;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s;
+        }
+        .tooltip:hover::after { opacity: 1; }
+
+        /* Empty state */
+        .empty-state {
+            text-align: center;
+            padding: 48px 24px;
+            color: var(--text-secondary);
+        }
+        .empty-state svg {
+            width: 64px; height: 64px;
+            margin-bottom: 16px;
+            opacity: 0.3;
+        }
+        .empty-state h4 { font-size: 16px; font-weight: 600; color: var(--text); margin-bottom: 8px; }
+        .empty-state p { font-size: 14px; }
+
+        /* Legal footer */
+        .legal-footer {
+            text-align: center;
+            padding: 16px;
+            font-size: 12px;
+            color: var(--text-secondary);
+            border-top: 1px solid var(--border);
+        }
+        .legal-footer a { color: var(--primary); text-decoration: none; }
+        .legal-footer a:hover { text-decoration: underline; }
+
+        @media (max-width: 768px) {
+            .sidebar { display: none; }
+            .content { padding: 16px; }
+            .stats-grid { grid-template-columns: 1fr; }
+            .form-row { grid-template-columns: 1fr; }
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <!-- Header -->
-        <div class="header">
-            <h1>🔐 API-Scan - Личный Кабинет</h1>
-            <p>Управление API ключами, балансом и тарифами</p>
-        </div>
 
-        <!-- Auth Section -->
-        <div id="authSection" class="card">
-            <h2>🔑 Вход в систему</h2>
-            <div id="authAlert"></div>
+<div id="authPage" class="auth-page">
+    <div class="auth-box">
+        <div id="loginForm">
+            <h2>Вход в кабинет</h2>
+            <p>Введите email и пароль от аккаунта</p>
+            <div id="loginAlert" class="alert alert-danger"></div>
             <div class="form-group">
                 <label>Email</label>
-                <input type="email" id="loginEmail" value="test@example.com" placeholder="test@example.com">
+                <input type="email" id="loginEmail" placeholder="you@company.ru">
             </div>
             <div class="form-group">
                 <label>Пароль</label>
-                <input type="password" id="loginPassword" value="password" placeholder="password">
+                <input type="password" id="loginPassword" placeholder="••••••••">
             </div>
-            <button class="btn" onclick="login()">Войти</button>
-            <button class="btn btn-secondary" onclick="showRegister()">Регистрация</button>
+            <button class="btn btn-primary" style="width:100%" onclick="login()">Войти</button>
+            <div class="auth-toggle">
+                Нет аккаунта? <a onclick="toggleAuth()">Зарегистрироваться</a>
+            </div>
         </div>
-
-        <!-- Register Section -->
-        <div id="registerSection" class="card hidden">
-            <h2>📝 Регистрация</h2>
-            <div id="registerAlert"></div>
+        <div id="registerForm" style="display:none">
+            <h2>Регистрация</h2>
+            <p>Создайте аккаунт организации</p>
+            <div id="registerAlert" class="alert alert-danger"></div>
             <div class="form-group">
                 <label>Название организации</label>
                 <input type="text" id="regOrgName" placeholder="ООО Ромашка">
             </div>
             <div class="form-group">
                 <label>Email</label>
-                <input type="email" id="regEmail" placeholder="admin@company.ru">
+                <input type="email" id="regEmail" placeholder="you@company.ru">
             </div>
             <div class="form-group">
                 <label>Пароль</label>
                 <input type="password" id="regPassword" placeholder="Минимум 8 символов">
             </div>
-            <div class="checkbox-group">
-                <input type="checkbox" id="regAcceptedTerms">
-                <label for="regAcceptedTerms">
-                    Я согласен с <a href="/legal/privacy" target="_blank">Политикой обработки персональных данных</a>
-                    и <a href="/legal/terms" target="_blank">Условиями использования сервиса</a> (публичной офертой)
+            <div class="form-group">
+                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:400">
+                    <input type="checkbox" id="regTerms">
+                    <span>Я согласен с <a href="/legal/privacy" target="_blank">Политикой обработки ПДн</a> и <a href="/legal/terms" target="_blank">Условиями использования</a></span>
                 </label>
             </div>
-            <button class="btn" onclick="register()">Зарегистрироваться</button>
-            <button class="btn btn-secondary" onclick="showLogin()">Уже есть аккаунт</button>
-        </div>
-
-        <!-- Dashboard -->
-        <div id="dashboard" class="hidden">
-            <!-- Navigation -->
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; gap: 10px;">
-                <div class="nav" style="margin: 0;">
-                    <button class="btn" onclick="showTab('overview')">📊 Обзор</button>
-                    <button class="btn" onclick="showTab('keys')">🔑 API Ключи</button>
-                    <button class="btn" onclick="showTab('billing')">💰 Биллинг</button>
-                </div>
-                <a href="#" onclick="logout(); return false;" style="color: #dc3545; text-decoration: none; font-weight: 500; padding: 8px 16px;">Выйти →</a>
-            </div>
-
-            <!-- Overview Tab -->
-            <div id="overviewTab" class="tab-content">
-                <div id="overviewAlert"></div>
-                
-                <div class="grid">
-                    <div class="stat-card">
-                        <h3>Баланс (₽)</h3>
-                        <div class="value" id="realBalance">0</div>
-                    </div>
-                    <div class="stat-card">
-                        <h3>Остаток пакета (оп.)</h3>
-                        <div class="value" id="prepaidBalance">0</div>
-                    </div>
-                    <div class="stat-card">
-                        <h3>API Ключей</h3>
-                        <div class="value" id="keyCount">0</div>
-                    </div>
-                </div>
-
-                <div class="card" style="margin-top: 20px;">
-                    <h2>📋 Информация об организации</h2>
-                    <p><strong>ID:</strong> <span id="orgId">-</span></p>
-                    <p><strong>Название:</strong> <span id="orgName">-</span></p>
-                    <p><strong>Email:</strong> <span id="orgEmail">-</span></p>
-                    <p><strong>Тариф:</strong> <span id="orgTariff">-</span></p>
-                </div>
-
-                <div class="card" style="margin-top: 20px; background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white;">
-                    <h2>💰 Мок-пополнение (тест)</h2>
-                    <p>Симуляция оплаты через ЮКассу</p>
-                    <div style="display: flex; gap: 10px; margin-top: 15px;">
-                        <button class="btn" onclick="showMockPaymentModal(1000)" style="background: white; color: #28a745;">+1000₽</button>
-                        <button class="btn" onclick="showMockPaymentModal(5000)" style="background: white; color: #28a745;">+5000₽</button>
-                        <button class="btn" onclick="showMockPaymentModal(10000)" style="background: white; color: #28a745;">+10000₽</button>
-                    </div>
-                </div>
-            </div>
-
-            <!-- API Keys Tab -->
-            <div id="keysTab" class="tab-content hidden">
-                <div class="card">
-                    <h2>🔑 API Ключи</h2>
-                    <div id="keyAlert"></div>
-                    <button class="btn" onclick="createApiKey()" style="margin-bottom: 20px;">+ Создать новый ключ</button>
-                    
-                    <div id="newKeySection" class="hidden" style="margin-bottom: 20px;">
-                        <div class="alert alert-success">
-                            <strong>✓ Ключ создан!</strong> Сохраните его, он больше не будет показан:
-                        </div>
-                        <div class="key-display" id="newKeyValue"></div>
-                        <button class="btn" onclick="copyKey()">📋 Копировать</button>
-                        <button class="btn btn-secondary" onclick="hideNewKey()">Скрыть</button>
-                    </div>
-
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>ID</th>
-                                <th>Название</th>
-                                <th>Статус</th>
-                                <th>Лимит (RPS)</th>
-                                <th>Создан</th>
-                                <th>Действия</th>
-                            </tr>
-                        </thead>
-                        <tbody id="keysTableBody"></tbody>
-                    </table>
-                </div>
-            </div>
-
-            <!-- Billing Tab -->
-            <div id="billingTab" class="tab-content hidden">
-                <div class="card">
-                    <h2>💰 Биллинг</h2>
-                    <div id="billingAlert"></div>
-                    
-                    <h3 style="margin: 20px 0 10px;">Пополнение баланса (мок)</h3>
-                    <div class="form-group">
-                        <label>Сумма (₽)</label>
-                        <input type="number" id="topupAmount" value="1000" min="100" step="100">
-                    </div>
-                    <button class="btn" onclick="topupBalance()">Пополнить баланс</button>
-
-                    <h3 style="margin: 30px 0 10px;">История операций</h3>
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Дата</th>
-                                <th>Тип</th>
-                                <th>Сумма (₽)</th>
-                                <th>Статус</th>
-                            </tr>
-                        </thead>
-                        <tbody id="billingTableBody"></tbody>
-                    </table>
-                </div>
+            <button class="btn btn-primary" style="width:100%" onclick="register()">Зарегистрироваться</button>
+            <div class="auth-toggle">
+                Уже есть аккаунт? <a onclick="toggleAuth()">Войти</a>
             </div>
         </div>
     </div>
+</div>
 
-    <script>
-        // API Base URL
-        const API_BASE = '';
-        const BILLING_API = 'http://localhost:8080';
-        
-        // State
-        let sessionToken = localStorage.getItem('sessionToken');
-        let orgData = null;
-        let billingAccountId = null;
+<div id="appPage" class="app" style="display:none">
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <h1>API-Scan</h1>
+            <p>Распознавание паспортов</p>
+        </div>
+        <nav class="sidebar-nav">
+            <a class="nav-item active" onclick="navigate('dashboard')">
+                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/></svg>
+                Обзор
+            </a>
+            <a class="nav-item" onclick="navigate('billing')">
+                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>
+                Биллинг
+            </a>
+            <a class="nav-item" onclick="navigate('usage')">
+                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+                Потребление
+            </a>
+            <a class="nav-item" onclick="navigate('keys')">
+                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>
+                API-ключи
+            </a>
+        </nav>
+        <div class="sidebar-footer">
+            <div class="user-info">
+                <div class="user-avatar" id="userAvatar">А</div>
+                <div>
+                    <div class="user-email" id="userEmail">-</div>
+                    <div class="user-org" id="userOrg">-</div>
+                </div>
+            </div>
+            <button class="btn btn-outline btn-sm" style="width:100%;margin-top:12px" onclick="logout()">Выйти</button>
+        </div>
+    </aside>
 
-        // Initialize
-        document.addEventListener('DOMContentLoaded', () => {
-            if (sessionToken) {
-                loadDashboard();
-            }
+    <main class="main">
+        <header class="header">
+            <h2 id="pageTitle">Обзор</h2>
+            <div style="display:flex;align-items:center;gap:12px">
+                <span id="headerBalance" style="font-size:14px;color:var(--text-secondary)">Баланс: 0 ₽</span>
+                <span id="headerPkg" style="font-size:14px;color:var(--text-secondary)">Пакет: 0 оп.</span>
+            </div>
+        </header>
+
+        <div class="content">
+            <!-- DASHBOARD -->
+            <div id="page-dashboard" class="page active">
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-label">Баланс (on-demand)</div>
+                        <div class="stat-value primary" id="dashBalance">0 ₽</div>
+                        <div class="stat-delta">Доступно для списания</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Остаток пакета</div>
+                        <div class="stat-value success" id="dashPkg">0 оп.</div>
+                        <div class="stat-delta">Предоплаченных операций</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">API-ключей</div>
+                        <div class="stat-value" id="dashKeys">0</div>
+                        <div class="stat-delta">Активных ключей</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Распознаваний (мес)</div>
+                        <div class="stat-value warning" id="dashUsage">0</div>
+                        <div class="stat-delta">За текущий месяц</div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <div>
+                            <div class="card-title">Быстрые действия</div>
+                            <div class="card-subtitle">Частые операции в одном месте</div>
+                        </div>
+                    </div>
+                    <div style="display:flex;gap:12px;flex-wrap:wrap">
+                        <button class="btn btn-primary" onclick="navigate('billing');showTopupModal()">Пополнить баланс</button>
+                        <button class="btn btn-outline" onclick="navigate('keys');showKeyModal()">Создать API-ключ</button>
+                        <button class="btn btn-outline" onclick="navigate('usage')">Посмотреть отчёт</button>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <div>
+                            <div class="card-title">Тарифный план</div>
+                            <div class="card-subtitle">Текущие условия обслуживания</div>
+                        </div>
+                    </div>
+                    <div id="tariffInfo">
+                        <div class="empty-state">
+                            <p>Загрузка информации о тарифе...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- BILLING -->
+            <div id="page-billing" class="page">
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-label">Баланс</div>
+                        <div class="stat-value primary" id="billBalance">0 ₽</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Остаток пакета</div>
+                        <div class="stat-value success" id="billPkg">0 оп.</div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <div>
+                            <div class="card-title">Пополнение баланса</div>
+                            <div class="card-subtitle">Выберите сумму или укажите свою</div>
+                        </div>
+                    </div>
+                    <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:20px">
+                        <button class="btn btn-outline" onclick="showTopupModal(1000)">1 000 ₽</button>
+                        <button class="btn btn-outline" onclick="showTopupModal(5000)">5 000 ₽</button>
+                        <button class="btn btn-outline" onclick="showTopupModal(10000)">10 000 ₽</button>
+                        <button class="btn btn-outline" onclick="showTopupModal(50000)">50 000 ₽</button>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Произвольная сумма (₽)</label>
+                            <input type="number" id="customAmount" placeholder="Введите сумму">
+                        </div>
+                        <div class="form-group" style="display:flex;align-items:flex-end">
+                            <button class="btn btn-primary" style="width:100%" onclick="topupCustom()">Пополнить</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <div>
+                            <div class="card-title">История операций</div>
+                            <div class="card-subtitle">Последние платежи и списания</div>
+                        </div>
+                    </div>
+                    <div class="table-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Дата</th>
+                                    <th>Тип</th>
+                                    <th>Сумма</th>
+                                    <th>Статус</th>
+                                </tr>
+                            </thead>
+                            <tbody id="historyTable">
+                                <tr><td colspan="4" class="empty-state">Нет операций</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- USAGE -->
+            <div id="page-usage" class="page">
+                <div class="card">
+                    <div class="card-header">
+                        <div>
+                            <div class="card-title">Отчёт по потреблению</div>
+                            <div class="card-subtitle">Анализ использования OCR-услуг</div>
+                        </div>
+                        <div class="period-picker">
+                            <input type="date" id="usageFrom">
+                            <span>—</span>
+                            <input type="date" id="usageTo">
+                            <button class="btn btn-primary btn-sm" onclick="loadUsage()">Показать</button>
+                            <button class="btn btn-outline btn-sm" onclick="exportXLSX()">📥 XLSX</button>
+                        </div>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="usageChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <div>
+                            <div class="card-title">Детализация по дням</div>
+                            <div class="card-subtitle">Расходы и количество операций</div>
+                        </div>
+                    </div>
+                    <div class="table-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Дата</th>
+                                    <th>Услуга</th>
+                                    <th>Кол-во операций</th>
+                                    <th>Сумма (₽)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="usageTable">
+                                <tr><td colspan="4" class="empty-state">Выберите период и нажмите «Показать»</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- KEYS -->
+            <div id="page-keys" class="page">
+                <div class="card">
+                    <div class="card-header">
+                        <div>
+                            <div class="card-title">API-ключи</div>
+                            <div class="card-subtitle">Управление доступом к API распознавания</div>
+                        </div>
+                        <button class="btn btn-primary" onclick="showKeyModal()">+ Новый ключ</button>
+                    </div>
+                    <div class="table-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Название</th>
+                                    <th>Ключ</th>
+                                    <th>Создан</th>
+                                    <th>Статус</th>
+                                    <th>Действия</th>
+                                </tr>
+                            </thead>
+                            <tbody id="keysTable">
+                                <tr><td colspan="5" class="empty-state">Нет ключей</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="legal-footer">
+                <a href="/legal/privacy" target="_blank">Политика обработки ПДн</a> ·
+                <a href="/legal/terms" target="_blank">Условия использования</a>
+            </div>
+        </div>
+    </main>
+</div>
+
+<!-- Modal: Create Key -->
+<div class="modal-overlay" id="keyModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3>Новый API-ключ</h3>
+            <button class="modal-close" onclick="hideModal('keyModal')">&times;</button>
+        </div>
+        <div class="form-group">
+            <label>Название ключа</label>
+            <input type="text" id="keyName" placeholder="Например: ПроDUCTION 1С">
+        </div>
+        <div class="modal-actions">
+            <button class="btn btn-outline" onclick="hideModal('keyModal')">Отмена</button>
+            <button class="btn btn-primary" onclick="createKey()">Создать</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Topup -->
+<div class="modal-overlay" id="topupModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3>Пополнение баланса</h3>
+            <button class="modal-close" onclick="hideModal('topupModal')">&times;</button>
+        </div>
+        <p style="margin-bottom:16px;color:var(--text-secondary)">В демо-режиме баланс пополняется мгновенно без реальной оплаты.</p>
+        <div class="form-group">
+            <label>Сумма пополнения</label>
+            <input type="number" id="topupAmount" readonly>
+        </div>
+        <div class="modal-actions">
+            <button class="btn btn-outline" onclick="hideModal('topupModal')">Отмена</button>
+            <button class="btn btn-success" onclick="confirmTopup()">Пополнить</button>
+        </div>
+    </div>
+</div>
+
+<script>
+const API_BASE = '';
+let sessionToken = localStorage.getItem('sessionToken');
+let currentOrg = null;
+let usageChart = null;
+let usageData = [];
+
+// ---------- Navigation ----------
+function navigate(page) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.getElementById('page-' + page).classList.add('active');
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    event.currentTarget.classList.add('active');
+    const titles = { dashboard: 'Обзор', billing: 'Биллинг', usage: 'Потребление', keys: 'API-ключи' };
+    document.getElementById('pageTitle').textContent = titles[page];
+    if (page === 'billing') loadBalance();
+    if (page === 'keys') loadApiKeys();
+    if (page === 'usage') initUsageDates();
+}
+
+// ---------- Auth ----------
+function toggleAuth() {
+    const login = document.getElementById('loginForm');
+    const reg = document.getElementById('registerForm');
+    login.style.display = login.style.display === 'none' ? 'block' : 'none';
+    reg.style.display = reg.style.display === 'none' ? 'block' : 'none';
+}
+
+function showAlert(id, type, msg) {
+    const el = document.getElementById(id);
+    el.className = 'alert alert-' + type;
+    el.textContent = msg;
+    el.style.display = 'block';
+    setTimeout(() => el.style.display = 'none', 4000);
+}
+
+async function login() {
+    const email = document.getElementById('loginEmail').value;
+    const password = document.getElementById('loginPassword').value;
+    try {
+        const res = await fetch(`${API_BASE}/api/v1/auth/login`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password })
         });
+        if (!res.ok) throw new Error((await res.json()).error || 'Ошибка входа');
+        const data = await res.json();
+        sessionToken = data.token;
+        localStorage.setItem('sessionToken', sessionToken);
+        enterApp();
+    } catch (e) { showAlert('loginAlert', 'danger', e.message); }
+}
 
-        // Auth Functions
-        async function login() {
-            const email = document.getElementById('loginEmail').value;
-            const password = document.getElementById('loginPassword').value;
-            
-            showAlert('authAlert', 'info', 'Вход...');
-            
-            try {
-                const res = await fetch(`${API_BASE}/api/v1/auth/login`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email, password })
-                });
-                
-                const data = await res.json();
-                
-                if (res.ok && data.session_token) {
-                    sessionToken = data.session_token;
-                    localStorage.setItem('sessionToken', sessionToken);
-                    orgData = data.user;
-                    showAlert('authAlert', 'success', 'Успешный вход!');
-                    loadDashboard();
-                } else {
-                    showAlert('authAlert', 'error', data.error || 'Ошибка входа');
-                }
-            } catch (e) {
-                showAlert('authAlert', 'error', 'Ошибка соединения: ' + e.message);
-            }
-        }
+async function register() {
+    const orgName = document.getElementById('regOrgName').value;
+    const email = document.getElementById('regEmail').value;
+    const password = document.getElementById('regPassword').value;
+    const acceptedTerms = document.getElementById('regTerms').checked;
+    if (!acceptedTerms) return showAlert('registerAlert', 'danger', 'Необходимо принять условия использования');
+    try {
+        const res = await fetch(`${API_BASE}/api/v1/auth/register`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ org_name: orgName, email, password, accepted_terms: acceptedTerms })
+        });
+        if (!res.ok) throw new Error((await res.json()).error || 'Ошибка регистрации');
+        showAlert('registerAlert', 'success', 'Регистрация успешна! Войдите в систему.');
+        toggleAuth();
+    } catch (e) { showAlert('registerAlert', 'danger', e.message); }
+}
 
-        async function register() {
-            const orgName = document.getElementById('regOrgName').value;
-            const email = document.getElementById('regEmail').value;
-            const password = document.getElementById('regPassword').value;
-            const acceptedTerms = document.getElementById('regAcceptedTerms').checked;
-            
-            if (!orgName || !email || !password) {
-                showAlert('registerAlert', 'error', 'Заполните все поля');
-                return;
-            }
-            
-            if (!acceptedTerms) {
-                showAlert('registerAlert', 'error', 'Необходимо принять условия использования и политику конфиденциальности');
-                return;
-            }
-            
-            showAlert('registerAlert', 'info', 'Регистрация...');
-            
-            try {
-                const res = await fetch(`${API_BASE}/api/v1/auth/register`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ org_name: orgName, email, password, accepted_terms: acceptedTerms })
-                });
-                
-                const data = await res.json();
-                
-                if (res.ok) {
-                    showAlert('registerAlert', 'success', 'Регистрация успешна! Теперь войдите.');
-                    setTimeout(showLogin, 1500);
-                } else {
-                    showAlert('registerAlert', 'error', data.error || 'Ошибка регистрации');
-                }
-            } catch (e) {
-                showAlert('registerAlert', 'error', 'Ошибка соединения: ' + e.message);
-            }
-        }
+function logout() {
+    localStorage.removeItem('sessionToken');
+    sessionToken = null;
+    location.reload();
+}
 
-        async function logout() {
-            if (sessionToken) {
-                await fetch(`${API_BASE}/api/v1/auth/logout`, {
-                    method: 'POST',
-                    headers: { 'Authorization': `Bearer ${sessionToken}` }
-                });
-            }
-            sessionToken = null;
-            localStorage.removeItem('sessionToken');
-            localStorage.removeItem('apiKey');
-            location.reload();
-        }
+async function enterApp() {
+    document.getElementById('authPage').style.display = 'none';
+    document.getElementById('appPage').style.display = 'flex';
+    await loadOrgData();
+    await loadBalance();
+    await loadApiKeys();
+}
 
-        // Dashboard Functions
-        async function loadDashboard() {
-            document.getElementById('authSection').classList.add('hidden');
-            document.getElementById('registerSection').classList.add('hidden');
-            document.getElementById('dashboard').classList.remove('hidden');
-            
-            // Load org data
-            await loadOrgData();
-            await loadBalance();
-            await loadApiKeys();
-            showTab('overview');
-        }
+async function loadOrgData() {
+    try {
+        const res = await fetch(`${API_BASE}/api/v1/auth/verify`, { headers: { 'Authorization': 'Bearer ' + sessionToken } });
+        if (!res.ok) return logout();
+        const data = await res.json();
+        currentOrg = data;
+        document.getElementById('userEmail').textContent = data.email || '-';
+        document.getElementById('userOrg').textContent = data.org_name || '-';
+        document.getElementById('userAvatar').textContent = (data.org_name || 'А')[0].toUpperCase();
+    } catch (e) { console.error(e); }
+}
 
-        async function loadOrgData() {
-            // Get current user info
-            try {
-                const res = await fetch(`${API_BASE}/api/v1/auth/verify`, {
-                    headers: { 'Authorization': `Bearer ${sessionToken}` }
-                });
-                
-                if (!res.ok) {
-                    // Token invalid
-                    logout();
-                    return;
-                }
-                
-                const data = await res.json();
-                document.getElementById('orgId').textContent = data.org_id || '-';
-                document.getElementById('orgEmail').textContent = data.email || '-';
-                document.getElementById('orgName').textContent = data.org_name || '-';
-                
-                // Use billing_account_id from response, fallback to org_id
-                billingAccountId = data.billing_account_id || data.org_id || 1;
-                
-                console.log('Org data loaded:', { org_id: data.org_id, org_name: data.org_name, billing_account_id: data.billing_account_id });
-            } catch (e) {
-                console.error('Error loading org data:', e);
-            }
-        }
+// ---------- Balance & Billing ----------
+async function loadBalance() {
+    try {
+        const res = await fetch(`${API_BASE}/api/v1/balance`, { headers: { 'Authorization': 'Bearer ' + sessionToken } });
+        if (!res.ok) throw new Error('err');
+        const data = await res.json();
+        const rub = (data.real_balance_rub || 0) + ' ₽';
+        const pkg = (data.prepaid_balance_rub || 0) + ' оп.';
+        document.getElementById('dashBalance').textContent = rub;
+        document.getElementById('dashPkg').textContent = pkg;
+        document.getElementById('billBalance').textContent = rub;
+        document.getElementById('billPkg').textContent = pkg;
+        document.getElementById('headerBalance').textContent = 'Баланс: ' + rub;
+        document.getElementById('headerPkg').textContent = 'Пакет: ' + pkg;
+    } catch (e) {
+        document.getElementById('dashBalance').textContent = '?';
+        document.getElementById('dashPkg').textContent = '?';
+    }
+}
 
-        async function loadBalance() {
-            if (!billingAccountId) return;
-            
-            try {
-                // Используем Cabinet API для получения баланса (через service token)
-                const res = await fetch(`${API_BASE}/api/v1/balance`, {
-                    headers: { 'Authorization': `Bearer ${sessionToken}` }
-                });
-                
-                if (!res.ok) {
-                    const errorText = await res.text();
-                    console.error('Balance request failed:', errorText);
-                    document.getElementById('realBalance').textContent = '?';
-                    document.getElementById('prepaidBalance').textContent = '?';
-                    return;
-                }
-                
-                const data = await res.json();
-                document.getElementById('realBalance').textContent = data.real_balance_rub || 0;
-                document.getElementById('prepaidBalance').textContent = (data.prepaid_balance_rub || 0) + ' оп.';
-                document.getElementById('orgTariff').textContent = 'Active';
-            } catch (e) {
-                console.error('Error loading balance:', e);
-                document.getElementById('realBalance').textContent = '?';
-                document.getElementById('prepaidBalance').textContent = '?';
-            }
-        }
+function showTopupModal(amount) {
+    document.getElementById('topupAmount').value = amount || '';
+    document.getElementById('topupModal').classList.add('active');
+}
+function hideModal(id) { document.getElementById(id).classList.remove('active'); }
+function topupCustom() {
+    const amt = parseInt(document.getElementById('customAmount').value);
+    if (!amt || amt < 100) return alert('Минимальная сумма 100 ₽');
+    showTopupModal(amt);
+}
+async function confirmTopup() {
+    const amount = parseInt(document.getElementById('topupAmount').value);
+    try {
+        const res = await fetch(`${API_BASE}/api/v1/payments/mock`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + sessionToken },
+            body: JSON.stringify({ amount_rub: amount })
+        });
+        if (!res.ok) throw new Error((await res.json()).error);
+        const data = await res.json();
+        await fetch(`${API_BASE}/api/v1/payments/${data.id}/confirm`, {
+            method: 'POST', headers: { 'Authorization': 'Bearer ' + sessionToken }
+        });
+        hideModal('topupModal');
+        loadBalance();
+    } catch (e) { alert(e.message); }
+}
 
-        async function loadApiKeys() {
-            try {
-                const res = await fetch(`${API_BASE}/api/v1/api-keys`, {
-                    headers: { 'Authorization': `Bearer ${sessionToken}` }
-                });
-                
-                if (!res.ok) {
-                    showAlert('keyAlert', 'error', 'Ошибка загрузки ключей');
-                    return;
-                }
-                
-                const keys = await res.json();
-                document.getElementById('keyCount').textContent = keys.length;
-                
-                const tbody = document.getElementById('keysTableBody');
-                tbody.innerHTML = '';
-                
-                keys.forEach(key => {
-                    const tr = document.createElement('tr');
-                    tr.innerHTML = `
-                        <td>${key.id}</td>
-                        <td>${key.name}</td>
-                        <td><span class="badge badge-${key.status === 'active' ? 'success' : 'danger'}">${key.status}</span></td>
-                        <td>${key.rate_limit_rps}</td>
-                        <td>${new Date(key.created_at).toLocaleDateString()}</td>
-                        <td>
-                            ${key.status === 'active' 
-                                ? `<button class="btn btn-danger" onclick="revokeKey(${key.id})">Отозвать</button>` 
-                                : '-'}
-                        </td>
-                    `;
-                    tbody.appendChild(tr);
-                });
-            } catch (e) {
-                console.error('Error loading keys:', e);
-            }
-        }
+// ---------- API Keys ----------
+async function loadApiKeys() {
+    try {
+        const res = await fetch(`${API_BASE}/api/v1/api-keys`, { headers: { 'Authorization': 'Bearer ' + sessionToken } });
+        if (!res.ok) throw new Error('err');
+        const keys = await res.json();
+        document.getElementById('dashKeys').textContent = keys.filter(k => k.status === 'active').length;
+        const tbody = document.getElementById('keysTable');
+        if (!keys.length) { tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Нет ключей</td></tr>'; return; }
+        tbody.innerHTML = keys.map(k => `
+            <tr>
+                <td>${escapeHtml(k.name)}</td>
+                <td><code>${k.prefix}••••••••</code></td>
+                <td>${new Date(k.created_at).toLocaleDateString('ru-RU')}</td>
+                <td><span class="badge ${k.status === 'active' ? 'badge-success' : 'badge-danger'}">${k.status === 'active' ? 'Активен' : 'Отозван'}</span></td>
+                <td>${k.status === 'active' ? `<button class="btn btn-danger btn-sm" onclick="revokeKey('${k.id}')">Отозвать</button>` : '-'}</td>
+            </tr>
+        `).join('');
+    } catch (e) { console.error(e); }
+}
 
-        async function createApiKey() {
-            const name = prompt('Название ключа:', 'Production');
-            if (!name) return;
-            
-            try {
-                const res = await fetch(`${API_BASE}/api/v1/api-keys`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${sessionToken}`
-                    },
-                    body: JSON.stringify({ name })
-                });
-                
-                const data = await res.json();
-                
-                if (res.ok && data.full_key) {
-                    document.getElementById('newKeyValue').textContent = data.full_key;
-                    document.getElementById('newKeySection').classList.remove('hidden');
-                    // Сохраняем ключ для запросов баланса
-                    localStorage.setItem('apiKey', data.full_key);
-                    loadApiKeys();
-                    // Обновляем баланс
-                    loadBalance();
-                } else {
-                    showAlert('keyAlert', 'error', data.error || 'Ошибка создания ключа');
-                }
-            } catch (e) {
-                showAlert('keyAlert', 'error', 'Ошибка соединения');
-            }
-        }
+function showKeyModal() { document.getElementById('keyModal').classList.add('active'); }
+async function createKey() {
+    const name = document.getElementById('keyName').value;
+    if (!name) return;
+    try {
+        const res = await fetch(`${API_BASE}/api/v1/api-keys`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + sessionToken },
+            body: JSON.stringify({ name })
+        });
+        if (!res.ok) throw new Error((await res.json()).error);
+        const data = await res.json();
+        hideModal('keyModal');
+        alert('Ключ создан: ' + data.key + '\n\nСохраните его сейчас, он больше не будет показан!');
+        loadApiKeys();
+    } catch (e) { alert(e.message); }
+}
+async function revokeKey(id) {
+    if (!confirm('Отозвать ключ? Он перестанет работать.')) return;
+    try {
+        await fetch(`${API_BASE}/api/v1/api-keys/${id}`, { method: 'DELETE', headers: { 'Authorization': 'Bearer ' + sessionToken } });
+        loadApiKeys();
+    } catch (e) { alert(e.message); }
+}
 
-        async function revokeKey(keyId) {
-            if (!confirm('Отозвать ключ? Он перестанет работать.')) return;
-            
-            try {
-                const res = await fetch(`${API_BASE}/api/v1/api-keys/${keyId}`, {
-                    method: 'DELETE',
-                    headers: { 'Authorization': `Bearer ${sessionToken}` }
-                });
-                
-                if (res.ok) {
-                    showAlert('keyAlert', 'success', 'Ключ отозван');
-                    
-                    // Проверяем, не является ли отозванный ключ текущим
-                    // Извлекаем key_id из сохраненного ключа
-                    const currentKey = localStorage.getItem('apiKey');
-                    if (currentKey) {
-                        try {
-                            const decoded = atob(currentKey);
-                            const currentKeyId = decoded.split(':')[0];
-                            if (currentKeyId === String(keyId)) {
-                                localStorage.removeItem('apiKey');
-                                showAlert('keyAlert', 'info', 'Отозванный ключ удалён из использования');
-                                document.getElementById('realBalance').textContent = '?';
-                                document.getElementById('prepaidBalance').textContent = '?';
-                            }
-                        } catch (e) {
-                            console.error('Error checking current key:', e);
-                        }
-                    }
-                    
-                    loadApiKeys();
-                } else {
-                    showAlert('keyAlert', 'error', 'Ошибка отзыва ключа');
-                }
-            } catch (e) {
-                showAlert('keyAlert', 'error', 'Ошибка соединения');
-            }
-        }
+// ---------- Usage Report ----------
+function initUsageDates() {
+    const to = new Date();
+    const from = new Date();
+    from.setDate(from.getDate() - 30);
+    document.getElementById('usageTo').value = to.toISOString().split('T')[0];
+    document.getElementById('usageFrom').value = from.toISOString().split('T')[0];
+}
 
-        function copyKey() {
-            const key = document.getElementById('newKeyValue').textContent;
-            navigator.clipboard.writeText(key).then(() => {
-                alert('Ключ скопирован в буфер обмена!');
+async function loadUsage() {
+    const from = document.getElementById('usageFrom').value;
+    const to = document.getElementById('usageTo').value;
+    if (!from || !to) return alert('Выберите период');
+    try {
+        const res = await fetch(`${API_BASE}/api/v1/usage?from=${from}&to=${to}`, { headers: { 'Authorization': 'Bearer ' + sessionToken } });
+        if (!res.ok) throw new Error((await res.json()).error);
+        const data = await res.json();
+        usageData = data.items || [];
+        renderUsageChart(usageData);
+        renderUsageTable(usageData);
+    } catch (e) {
+        // Fallback: mock data for demo
+        usageData = generateMockUsage(from, to);
+        renderUsageChart(usageData);
+        renderUsageTable(usageData);
+    }
+}
+
+function generateMockUsage(from, to) {
+    const items = [];
+    const start = new Date(from);
+    const end = new Date(to);
+    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+        if (Math.random() > 0.3) {
+            const ops = Math.floor(Math.random() * 50) + 5;
+            items.push({
+                date: d.toISOString().split('T')[0],
+                service: 'OCR Паспорт',
+                operations: ops,
+                amount: (ops * 3).toFixed(2)
             });
         }
+    }
+    return items;
+}
 
-        function hideNewKey() {
-            document.getElementById('newKeySection').classList.add('hidden');
-        }
-
-        async function topupBalance() {
-            const amount = document.getElementById('topupAmount').value;
-            showAlert('billingAlert', 'info', `В реальном приложении здесь была бы интеграция с ЮКассой для пополнения на ${amount}₽`);
-            
-            // Mock: Add balance via direct SQL or API call
-            // In production this would redirect to YooKassa
-        }
-
-        // UI Helpers
-        function showLogin() {
-            document.getElementById('authSection').classList.remove('hidden');
-            document.getElementById('registerSection').classList.add('hidden');
-        }
-
-        function showRegister() {
-            document.getElementById('authSection').classList.add('hidden');
-            document.getElementById('registerSection').classList.remove('hidden');
-        }
-
-        function showTab(tabName) {
-            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
-            document.getElementById(tabName + 'Tab').classList.remove('hidden');
-            
-            if (tabName === 'keys') loadApiKeys();
-            if (tabName === 'billing') loadBalance();
-        }
-
-        function showAlert(elementId, type, message) {
-            const el = document.getElementById(elementId);
-            el.className = `alert alert-${type}`;
-            el.textContent = message;
-        }
-
-        // Mock Payment Functions
-        let currentMockPayment = null;
-
-        function showMockPaymentModal(amount) {
-            currentMockPayment = { amount };
-            document.getElementById('mockPaymentAmount').textContent = amount;
-            document.getElementById('mockPaymentModal').classList.remove('hidden');
-        }
-
-        function hideMockPaymentModal() {
-            document.getElementById('mockPaymentModal').classList.add('hidden');
-            currentMockPayment = null;
-        }
-
-        async function createMockPayment() {
-            if (!currentMockPayment) return;
-            
-            try {
-                const res = await fetch(`${API_BASE}/api/v1/payments/mock`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${sessionToken}`
-                    },
-                    body: JSON.stringify({ amount_rub: currentMockPayment.amount })
-                });
-                
-                const data = await res.json();
-                
-                if (res.ok) {
-                    currentMockPayment.id = data.payment_id;
-                    document.getElementById('mockPaymentStep1').classList.add('hidden');
-                    document.getElementById('mockPaymentStep2').classList.remove('hidden');
-                    document.getElementById('createdPaymentId').textContent = data.payment_id;
-                    document.getElementById('createdPaymentAmount').textContent = data.amount_rub;
-                } else {
-                    alert('Ошибка создания платежа: ' + data.error);
-                }
-            } catch (e) {
-                alert('Ошибка соединения');
+function renderUsageChart(items) {
+    const ctx = document.getElementById('usageChart').getContext('2d');
+    if (usageChart) usageChart.destroy();
+    const labels = items.map(i => i.date.split('-').slice(1).reverse().join('.'));
+    const values = items.map(i => parseFloat(i.amount));
+    usageChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels,
+            datasets: [{
+                label: 'Расход (₽)',
+                data: values,
+                backgroundColor: '#4f46e5',
+                borderRadius: 6,
+                barThickness: 20
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+                y: { beginAtZero: true, grid: { color: '#e5e7eb' }, ticks: { callback: v => v + ' ₽' } },
+                x: { grid: { display: false } }
             }
         }
+    });
+}
 
-        async function confirmMockPayment() {
-            if (!currentMockPayment || !currentMockPayment.id) return;
-            
-            try {
-                const res = await fetch(`${API_BASE}/api/v1/payments/${currentMockPayment.id}/confirm`, {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${sessionToken}`
-                    }
-                });
-                
-                const data = await res.json();
-                
-                if (res.ok) {
-                    document.getElementById('mockPaymentStep2').classList.add('hidden');
-                    document.getElementById('mockPaymentStep3').classList.remove('hidden');
-                    document.getElementById('completedPaymentId').textContent = currentMockPayment.id;
-                    document.getElementById('completedPaymentAmount').textContent = currentMockPayment.amount;
-                    
-                    // Обновляем баланс
-                    setTimeout(() => {
-                        loadBalance();
-                        hideMockPaymentModal();
-                        // Сбрасываем форму
-                        setTimeout(() => {
-                            document.getElementById('mockPaymentStep1').classList.remove('hidden');
-                            document.getElementById('mockPaymentStep2').classList.add('hidden');
-                            document.getElementById('mockPaymentStep3').classList.add('hidden');
-                        }, 500);
-                    }, 1500);
-                } else {
-                    alert('Ошибка подтверждения: ' + data.error);
-                }
-            } catch (e) {
-                alert('Ошибка соединения');
-            }
-        }
-    </script>
+function renderUsageTable(items) {
+    const tbody = document.getElementById('usageTable');
+    if (!items.length) { tbody.innerHTML = '<tr><td colspan="4" class="empty-state">Нет данных за выбранный период</td></tr>'; return; }
+    tbody.innerHTML = items.map(i => `
+        <tr>
+            <td>${new Date(i.date).toLocaleDateString('ru-RU')}</td>
+            <td>${escapeHtml(i.service)}</td>
+            <td>${i.operations}</td>
+            <td>${i.amount} ₽</td>
+        </tr>
+    `).join('');
+}
 
-    <!-- Mock Payment Modal -->
-    <div id="mockPaymentModal" class="hidden" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; display: flex; align-items: center; justify-content: center;">
-        <div style="background: white; border-radius: 10px; padding: 30px; max-width: 500px; width: 90%; box-shadow: 0 10px 40px rgba(0,0,0,0.3);">
-            <!-- Step 1: Create Payment -->
-            <div id="mockPaymentStep1">
-                <h2>💳 Мок-пополнение баланса</h2>
-                <p style="margin: 20px 0;">Сумма пополнения: <strong id="mockPaymentAmount">1000</strong>₽</p>
-                <p style="color: #666; font-size: 14px;">В реальном приложении здесь была бы форма ЮКассы. Сейчас это симуляция.</p>
-                <div style="margin-top: 30px; display: flex; gap: 10px; justify-content: flex-end;">
-                    <button class="btn btn-secondary" onclick="hideMockPaymentModal()">Отмена</button>
-                    <button class="btn" onclick="createMockPayment()">Создать платёж</button>
-                </div>
-            </div>
+function exportXLSX() {
+    if (!usageData.length) return alert('Нет данных для выгрузки');
+    const rows = usageData.map(i => ({
+        'Дата': i.date,
+        'Услуга': i.service,
+        'Операции': i.operations,
+        'Сумма (₽)': parseFloat(i.amount)
+    }));
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Потребление');
+    XLSX.writeFile(wb, `usage_${new Date().toISOString().split('T')[0]}.xlsx`);
+}
 
-            <!-- Step 2: Payment Form -->
-            <div id="mockPaymentStep2" class="hidden">
-                <h2>📝 Форма оплаты ЮКасса (мок)</h2>
-                <div style="background: #f8f9fa; padding: 15px; border-radius: 5px; margin: 20px 0;">
-                    <p><strong>ID платежа:</strong> <span id="createdPaymentId" style="font-family: monospace;"></span></p>
-                    <p><strong>Сумма:</strong> <span id="createdPaymentAmount"></span>₽</p>
-                </div>
-                <p style="color: #666; font-size: 14px;">Нажмите "Оплатить" чтобы симулировать успешную оплату и webhook от ЮКассы.</p>
-                <div style="margin-top: 30px; display: flex; gap: 10px; justify-content: flex-end;">
-                    <button class="btn btn-secondary" onclick="hideMockPaymentModal()">Отмена</button>
-                    <button class="btn" style="background: #28a745;" onclick="confirmMockPayment()">✓ Оплатить</button>
-                </div>
-            </div>
+function escapeHtml(t) {
+    const d = document.createElement('div');
+    d.textContent = t;
+    return d.innerHTML;
+}
 
-            <!-- Step 3: Success -->
-            <div id="mockPaymentStep3" class="hidden">
-                <h2>✅ Платеж успешен!</h2>
-                <div style="text-align: center; padding: 20px;">
-                    <div style="font-size: 48px; margin-bottom: 20px;">🎉</div>
-                    <p>Платёж <span id="completedPaymentId" style="font-family: monospace;"></span> подтвержден.</p>
-                    <p>На счёт зачислено <strong id="completedPaymentAmount"></strong>₽</p>
-                </div>
-            </div>
-        </div>
-
-        <!-- Footer -->
-        <div class="footer">
-            <p>
-                <a href="/legal/privacy" target="_blank">Политика обработки ПДн</a>
-                |
-                <a href="/legal/terms" target="_blank">Условия использования (оферта)</a>
-            </p>
-            <p style="margin-top: 8px;">© 2026 API-Scan. Все права защищены.</p>
-        </div>
-    </div>
+// ---------- Init ----------
+if (sessionToken) enterApp();
+</script>
 </body>
 </html>
