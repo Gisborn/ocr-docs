@@ -104,6 +104,11 @@ func (s *AuthService) Register(ctx context.Context, req *RegisterRequest) (*Regi
 		return nil, fmt.Errorf("create user failed: %w", err)
 	}
 
+	// Создаём billing account
+	if _, err := s.CreateBillingAccount(ctx, org.ID); err != nil {
+		log.Printf("[Register] Failed to create billing account for org %d: %v", org.ID, err)
+	}
+
 	// Логируем событие
 	s.repo.CreateAccountEvent(ctx, &models.AccountEvent{
 		OrgID:     org.ID,
