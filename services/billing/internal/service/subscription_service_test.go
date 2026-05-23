@@ -60,9 +60,21 @@ func TestCreateSubscription(t *testing.T) {
 		t.Error("Expected subscription_charge event with -20000")
 	}
 
-	// Проверяем что создано ровно одно событие
-	if len(repo.events) != 1 {
-		t.Errorf("Expected 1 billing event, got %d", len(repo.events))
+	// Проверяем что создано событие начисления prepaid
+	foundPrepaid := false
+	for _, e := range repo.events {
+		if e.Type == "upgrade_bonus" && e.PrepaidAmountRub == 6000 {
+			foundPrepaid = true
+			break
+		}
+	}
+	if !foundPrepaid {
+		t.Error("Expected upgrade_bonus event with +6000 prepaid")
+	}
+
+	// Проверяем что создано ровно 2 события
+	if len(repo.events) != 2 {
+		t.Errorf("Expected 2 billing events, got %d", len(repo.events))
 	}
 }
 

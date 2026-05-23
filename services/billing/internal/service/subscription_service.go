@@ -118,10 +118,11 @@ func (s *SubscriptionService) CreateSubscription(ctx context.Context, accountID 
 
 	// Создаем billing event для списания
 	if req.PaymentMethod == "balance" {
-		// Формируем description в метаданных
 		metadata := map[string]interface{}{
 			"description": fmt.Sprintf("Подписка %s", tariff.Name),
 		}
+
+		// Списание с рублёвого баланса
 		event := &models.BillingEvent{
 			AccountID:      accountID,
 			Type:           "subscription_charge",
@@ -131,6 +132,20 @@ func (s *SubscriptionService) CreateSubscription(ctx context.Context, accountID 
 		}
 		if err := s.repo.CreateBillingEvent(ctx, event); err != nil {
 			return nil, fmt.Errorf("failed to create billing event: %w", err)
+		}
+
+		// Начисление prepaid операций (если тариф включает prepaid)
+		if tariffVersion.PrepaidAmountRub > 0 {
+			prepaidEvent := &models.BillingEvent{
+				AccountID:        accountID,
+				Type:             "upgrade_bonus",
+				PrepaidAmountRub: tariffVersion.PrepaidAmountRub,
+				Metadata:         metadata,
+				SubscriptionID:   &sub.ID,
+			}
+			if err := s.repo.CreateBillingEvent(ctx, prepaidEvent); err != nil {
+				return nil, fmt.Errorf("failed to create prepaid billing event: %w", err)
+			}
 		}
 	}
 

@@ -37,6 +37,8 @@
             --chart-text: #64748b;
             --tariff-current-bg: #f0fdf4;
             --tariff-current-border: #86efac;
+            --tariff-current-text: #065f46;
+            --tariff-current-text-secondary: #047857;
         }
         [data-theme="dark"] {
             --primary: #6366f1;
@@ -57,8 +59,10 @@
             --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.4), 0 4px 6px -2px rgba(0,0,0,0.3);
             --chart-grid: #334155;
             --chart-text: #94a3b8;
-            --tariff-current-bg: #064e3b;
+            --tariff-current-bg: #0f2922;
             --tariff-current-border: #10b981;
+            --tariff-current-text: #d1fae5;
+            --tariff-current-text-secondary: #6ee7b7;
         }
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
@@ -249,25 +253,54 @@
         .btn-success { background: var(--success); color: #fff; }
         .btn-danger { background: var(--danger); color: #fff; }
         .btn-sm { padding: 6px 12px; font-size: 13px; }
-        .theme-toggle {
+        .theme-switch-wrap {
             display: flex;
             align-items: center;
-            justify-content: center;
-            gap: 8px;
-            padding: 8px 12px;
-            border-radius: 8px;
-            border: 1px solid var(--sidebar-border);
-            background: var(--sidebar-active);
-            color: var(--sidebar-text);
-            font-size: 13px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.2s;
-            width: 100%;
-            margin-top: 8px;
+            justify-content: space-between;
+            margin-top: 12px;
+            padding: 0 4px;
         }
-        .theme-toggle:hover { background: var(--border); color: var(--text); }
-        .theme-toggle svg { width: 16px; height: 16px; }
+        .theme-switch-label {
+            font-size: 13px;
+            color: var(--sidebar-text);
+            font-weight: 500;
+        }
+        .theme-switch {
+            position: relative;
+            display: inline-block;
+            width: 44px;
+            height: 24px;
+        }
+        .theme-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .theme-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: var(--border);
+            transition: .3s;
+            border-radius: 24px;
+        }
+        .theme-slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .3s;
+            border-radius: 50%;
+        }
+        .theme-switch input:checked + .theme-slider {
+            background-color: var(--primary);
+        }
+        .theme-switch input:checked + .theme-slider:before {
+            transform: translateX(20px);
+        }
         .btn-outline-light {
             background: transparent;
             border: 1px solid var(--sidebar-border);
@@ -297,6 +330,24 @@
         }
         .tariff-card:hover { border-color: var(--primary); transform: translateY(-2px); box-shadow: var(--shadow-lg); }
         .tariff-card.current { border-color: var(--tariff-current-border); background: var(--tariff-current-bg); }
+        .tariff-card.current .tariff-name { color: var(--tariff-current-text, inherit); }
+        .tariff-card.current .tariff-desc { color: var(--tariff-current-text-secondary, var(--text-secondary)); }
+        .tariff-card.current .tariff-features { color: var(--tariff-current-text-secondary, var(--text-secondary)); }
+
+        .current-subscription-banner {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 20px;
+            padding: 16px;
+            background: var(--tariff-current-bg);
+            border: 2px solid var(--tariff-current-border);
+            border-radius: 12px;
+        }
+        .current-subscription-banner .banner-icon { font-size: 32px; }
+        .current-subscription-banner .banner-title { font-size: 18px; font-weight: 700; color: var(--tariff-current-text, var(--text)); }
+        .current-subscription-banner .banner-meta { font-size: 13px; color: var(--tariff-current-text-secondary, var(--text-secondary)); }
+        .current-subscription-banner .banner-actions { margin-left: auto; }
         .tariff-card .tariff-name { font-size: 18px; font-weight: 700; }
         .tariff-card .tariff-price { font-size: 24px; font-weight: 700; color: var(--primary); }
         .tariff-card .tariff-desc { font-size: 13px; color: var(--text-secondary); flex: 1; }
@@ -626,10 +677,13 @@
                     <div class="user-org" id="userOrg">-</div>
                 </div>
             </div>
-            <button class="theme-toggle" onclick="toggleTheme()">
-                <svg id="themeIcon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
-                <span id="themeLabel">Тёмная тема</span>
-            </button>
+            <div class="theme-switch-wrap">
+                <span class="theme-switch-label" id="themeLabel">Тёмная тема</span>
+                <label class="theme-switch">
+                    <input type="checkbox" id="themeToggle" onchange="toggleTheme()">
+                    <span class="theme-slider"></span>
+                </label>
+            </div>
             <button class="btn btn-outline-light btn-sm" style="width:100%;margin-top:8px" onclick="logout()">Выйти</button>
         </div>
     </aside>
@@ -698,6 +752,16 @@
 
             <!-- BILLING -->
             <div id="page-billing" class="page">
+                <div class="card">
+                    <div class="card-header">
+                        <div>
+                            <div class="card-title">Тарифный план</div>
+                            <div class="card-subtitle">Управление подпиской</div>
+                        </div>
+                    </div>
+                    <div id="tariffInfo"></div>
+                </div>
+
                 <div class="stats-grid">
                     <div class="stat-card">
                         <div class="stat-label">Баланс</div>
@@ -861,6 +925,29 @@
     </div>
 </div>
 
+<!-- Modal: Display Key -->
+<div class="modal-overlay" id="keyDisplayModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3>API-ключ создан</h3>
+            <button class="modal-close" onclick="hideModal('keyDisplayModal')">&times;</button>
+        </div>
+        <div class="alert alert-success" style="display:block;margin-bottom:16px">
+            Сохраните ключ сейчас — он больше не будет показан!
+        </div>
+        <div class="form-group">
+            <label>Ваш API-ключ</label>
+            <div style="display:flex;gap:8px">
+                <input type="text" id="displayedKey" readonly style="font-family:monospace;flex:1;background:var(--sidebar-active)">
+                <button class="btn btn-primary" onclick="copyDisplayedKey()">Копировать</button>
+            </div>
+        </div>
+        <div class="modal-actions">
+            <button class="btn btn-outline" onclick="hideModal('keyDisplayModal')">Закрыть</button>
+        </div>
+    </div>
+</div>
+
 <!-- Modal: Topup -->
 <div class="modal-overlay" id="topupModal">
     <div class="modal">
@@ -920,16 +1007,10 @@ function toggleTheme() {
 
 function updateThemeToggle() {
     const theme = getCurrentTheme();
-    const icon = document.getElementById('themeIcon');
+    const toggle = document.getElementById('themeToggle');
     const label = document.getElementById('themeLabel');
-    if (!icon || !label) return;
-    if (theme === 'dark') {
-        icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>';
-        label.textContent = 'Светлая тема';
-    } else {
-        icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>';
-        label.textContent = 'Тёмная тема';
-    }
+    if (toggle) toggle.checked = theme === 'dark';
+    if (label) label.textContent = theme === 'dark' ? 'Светлая тема' : 'Тёмная тема';
 }
 
 // ---------- Navigation ----------
@@ -940,7 +1021,7 @@ function navigate(page) {
     event.currentTarget.classList.add('active');
     const titles = { dashboard: 'Обзор', billing: 'Биллинг', usage: 'Потребление', keys: 'API-ключи' };
     document.getElementById('pageTitle').textContent = titles[page];
-    if (page === 'billing') { loadBalance(); loadHistory(); }
+    if (page === 'billing') { loadBalance(); loadHistory(); loadTariff(); }
     if (page === 'keys') loadApiKeys();
     if (page === 'usage') initUsageDates();
 }
@@ -1141,9 +1222,21 @@ async function createKey() {
         if (!res.ok) throw new Error((await res.json()).error);
         const data = await res.json();
         hideModal('keyModal');
-        alert('Ключ создан: ' + data.full_key + '\n\nСохраните его сейчас, он больше не будет показан!');
+        document.getElementById('keyName').value = '';
+        document.getElementById('displayedKey').value = data.full_key;
+        document.getElementById('keyDisplayModal').classList.add('active');
         loadApiKeys();
     } catch (e) { alert(e.message); }
+}
+
+function copyDisplayedKey() {
+    const input = document.getElementById('displayedKey');
+    input.select();
+    document.execCommand('copy');
+    const btn = event.target;
+    const original = btn.textContent;
+    btn.textContent = 'Скопировано!';
+    setTimeout(() => btn.textContent = original, 2000);
 }
 async function revokeKey(id) {
     if (!confirm('Отозвать ключ? Он перестанет работать.')) return;
@@ -1191,24 +1284,25 @@ async function loadTariff() {
             currentCode = sub.tariff_code || 'basic';
         }
     } catch (e) { console.log('No subscription endpoint yet, defaulting to basic'); }
-    renderTariffSection(currentCode, sub);
+    renderTariffSection(currentCode, sub, 'tariffInfo');
 }
 
-function renderTariffSection(currentCode, sub) {
-    const container = document.getElementById('tariffInfo');
+function renderTariffSection(currentCode, sub, containerId) {
+    const container = document.getElementById(containerId || 'tariffInfo');
+    if (!container) return;
     const currentTariff = TARIFFS.find(t => t.code === currentCode) || TARIFFS[1];
 
     if (sub && sub.status === 'active' && currentCode !== 'free' && currentCode !== 'basic') {
         // Active paid subscription view
         const expires = sub.expires_at ? new Date(sub.expires_at).toLocaleDateString('ru-RU') : '—';
         container.innerHTML = `
-            <div style="display:flex;align-items:center;gap:16px;margin-bottom:20px;padding:16px;background:#f0fdf4;border-radius:12px;border:1px solid #bbf7d0;">
-                <div style="font-size:32px">⭐</div>
+            <div class="current-subscription-banner">
+                <div class="banner-icon">⭐</div>
                 <div>
-                    <div style="font-size:18px;font-weight:700;color:#065f46">${escapeHtml(currentTariff.name)}</div>
-                    <div style="font-size:13px;color:#047857">Активна до ${expires} · ${sub.auto_renew ? 'автопродление вкл.' : 'автопродление выкл.'}</div>
+                    <div class="banner-title">${escapeHtml(currentTariff.name)}</div>
+                    <div class="banner-meta">Активна до ${expires} · ${sub.auto_renew ? 'автопродление вкл.' : 'автопродление выкл.'}</div>
                 </div>
-                <div style="margin-left:auto">
+                <div class="banner-actions">
                     <button class="btn btn-outline" onclick="showTariffCarousel()">Сменить тариф</button>
                 </div>
             </div>
