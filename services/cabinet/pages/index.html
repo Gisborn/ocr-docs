@@ -825,7 +825,7 @@ async function login() {
         });
         if (!res.ok) throw new Error((await res.json()).error || 'Ошибка входа');
         const data = await res.json();
-        sessionToken = data.token;
+        sessionToken = data.session_token;
         localStorage.setItem('sessionToken', sessionToken);
         enterApp();
     } catch (e) { showAlert('loginAlert', 'danger', e.message); }
