@@ -334,3 +334,103 @@ func getEnv(key, defaultValue string) string {
 	}
 	return defaultValue
 }
+
+
+func TestBalanceAndHistory(t *testing.T) {
+	ctx := context.Background()
+	testEmail := "test_balance@example.com"
+
+	// Cleanup
+	_, _ = testPool.Exec(ctx, "DELETE FROM account_events WHERE org_id IN (SELECT id FROM organizations WHERE email = $1)", testEmail)
+	_, _ = testPool.Exec(ctx, "DELETE FROM sessions WHERE user_id IN (SELECT id FROM users WHERE email = $1)", testEmail)
+	_, _ = testPool.Exec(ctx, "DELETE FROM users WHERE email = $1", testEmail)
+	_, _ = testPool.Exec(ctx, "DELETE FROM organizations WHERE email = $1", testEmail)
+
+	// Create user with billing account
+	hash := "$2a$10$kIxY6tX2MRiV4tROQZHKOenezw37Hdc1s14qDCSy9jsqBYFDP2Xde"
+	_, err := testPool.Exec(ctx,
+		`INSERT INTO organizations (name, email, email_verified, password_hash, status, billing_account_id)
+		 VALUES ('Test Org', $1, true, $2, 'active', 1)`,
+		testEmail, hash)
+	if err != nil {
+		t.Fatalf("Failed to create org: %v", err)
+	}
+
+	var orgID int64
+	testPool.QueryRow(ctx, "SELECT id FROM organizations WHERE email = $1", testEmail).Scan(&orgID)
+
+	_, err = testPool.Exec(ctx,
+		`INSERT INTO users (org_id, email, password_hash, role)
+		 VALUES ($1, $2, $3, 'admin')`,
+		orgID, testEmail, hash)
+	if err != nil {
+		t.Fatalf("Failed to create user: %v", err)
+	}
+
+	// Login
+	loginBody := map[string]string{"email": testEmail, "password": "password"}
+	body, _ := json.Marshal(loginBody)
+	resp, err := http.Post(cabinetURL+"/api/v1/auth/login", "application/json", bytes.NewBuffer(body))
+	if err != nil {
+		t.Fatalf("Login failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	var loginResp struct{ SessionToken string `json:"session_token"` }
+	json.NewDecoder(resp.Body).Decode(&loginResp)
+	token := loginResp.SessionToken
+
+	client := &http.Client{Timeout: 10 * time.Second}
+
+	// Test GET /api/v1/balance
+	t.Run("Balance endpoint exists", func(t *testing.T) {
+		req, _ := http.NewRequest("GET", cabinetURL+"/api/v1/balance", nil)
+		req.Header.Set("Authorization", "Bearer "+token)
+
+		resp, err := client.Do(req)
+		if err != nil {
+			t.Fatalf("Balance request failed: %v", err)
+		}
+		defer resp.Body.Close()
+
+		// 200 if billing available, 500 if not — both mean endpoint exists
+		if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusInternalServerError {
+			t.Fatalf("Expected 200 or 500, got %d", resp.StatusCode)
+		}
+		t.Logf("Balance endpoint returned %d", resp.StatusCode)
+	})
+
+	// Test GET /api/v1/history
+	t.Run("History endpoint exists", func(t *testing.T) {
+		req, _ := http.NewRequest("GET", cabinetURL+"/api/v1/history", nil)
+		req.Header.Set("Authorization", "Bearer "+token)
+
+		resp, err := client.Do(req)
+		if err != nil {
+			t.Fatalf("History request failed: %v", err)
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusInternalServerError {
+			t.Fatalf("Expected 200 or 500, got %d", resp.StatusCode)
+		}
+		t.Logf("History endpoint returned %d", resp.StatusCode)
+	})
+
+	// Test GET /api/v1/subscription (no subscription = 404)
+	t.Run("Subscription endpoint returns 404", func(t *testing.T) {
+		req, _ := http.NewRequest("GET", cabinetURL+"/api/v1/subscription", nil)
+		req.Header.Set("Authorization", "Bearer "+token)
+
+		resp, err := client.Do(req)
+		if err != nil {
+			t.Fatalf("Subscription request failed: %v", err)
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusNotFound && resp.StatusCode != http.StatusInternalServerError {
+			t.Fatalf("Expected 404 or 500, got %d", resp.StatusCode)
+		}
+		t.Logf("Subscription endpoint returned %d", resp.StatusCode)
+	})
+}

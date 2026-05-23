@@ -273,6 +273,9 @@ func (s *SubscriptionService) GetActiveSubscription(ctx context.Context, account
 	if err != nil {
 		return nil, err
 	}
+	if sub == nil {
+		return nil, fmt.Errorf("no active subscription")
+	}
 
 	tariffVersion, err := s.repo.GetTariffVersion(ctx, sub.TariffVersionID)
 	if err != nil {

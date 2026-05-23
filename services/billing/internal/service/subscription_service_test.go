@@ -225,3 +225,118 @@ func TestIdempotentReserve(t *testing.T) {
 		t.Errorf("Expected 1 reservation, got %d", count)
 	}
 }
+
+func TestGetActiveSubscription(t *testing.T) {
+	repo := NewMockRepository()
+
+	// Создаем тестовый тариф
+	repo.tariffs[1] = &models.Tariff{
+		ID:   1,
+		Code: "pro",
+		Name: "Pro",
+	}
+	repo.tariffVersions[1] = &models.TariffVersion{
+		ID:               1,
+		TariffID:         1,
+		ValidFrom:        time.Now().AddDate(-1, 0, 0),
+		DurationDays:     30,
+		BasePriceRub:     20000,
+		PrepaidAmountRub: 6000,
+	}
+
+	svc := NewSubscriptionService(repo)
+
+	// Создаем аккаунт и подписку
+	acc, _ := repo.CreateAccount(context.Background())
+	repo.balances[acc.ID].RealBalanceRub = 25000
+
+	_, _ = svc.CreateSubscription(context.Background(), acc.ID, &CreateSubscriptionRequest{
+		TariffCode:    "pro",
+		PaymentMethod: "balance",
+	})
+
+	// Получаем активную подписку
+	resp, err := svc.GetActiveSubscription(context.Background(), acc.ID)
+	if err != nil {
+		t.Fatalf("GetActiveSubscription failed: %v", err)
+	}
+
+	if resp == nil {
+		t.Fatal("Expected subscription, got nil")
+	}
+	if resp.TariffCode != "pro" {
+		t.Errorf("Expected tariff_code pro, got %s", resp.TariffCode)
+	}
+	if resp.TariffName != "Pro" {
+		t.Errorf("Expected tariff_name Pro, got %s", resp.TariffName)
+	}
+	if resp.Status != "active" {
+		t.Errorf("Expected status active, got %s", resp.Status)
+	}
+	if resp.AccountID != acc.ID {
+		t.Errorf("Expected account_id %d, got %d", acc.ID, resp.AccountID)
+	}
+}
+
+func TestGetActiveSubscriptionNotFound(t *testing.T) {
+	repo := NewMockRepository()
+	svc := NewSubscriptionService(repo)
+
+	acc, _ := repo.CreateAccount(context.Background())
+
+	// Пытаемся получить подписку для аккаунта без подписки
+	_, err := svc.GetActiveSubscription(context.Background(), acc.ID)
+	if err == nil {
+		t.Fatal("Expected error for account without subscription")
+	}
+	if err.Error() != "no active subscription" {
+		t.Errorf("Expected 'no active subscription', got: %v", err)
+	}
+}
+
+func TestGetBillingEvents(t *testing.T) {
+	repo := NewMockRepository()
+	svc := NewSubscriptionService(repo)
+
+	acc, _ := repo.CreateAccount(context.Background())
+
+	// Создаем несколько событий
+	repo.CreateBillingEvent(context.Background(), &models.BillingEvent{
+		AccountID:     acc.ID,
+		Type:          "balance_topup",
+		RealAmountRub: 1000,
+	})
+	repo.CreateBillingEvent(context.Background(), &models.BillingEvent{
+		AccountID:     acc.ID,
+		Type:          "pay_as_you_go",
+		RealAmountRub: -50,
+	})
+
+	// Получаем историю
+	events, err := svc.GetBillingEvents(context.Background(), acc.ID)
+	if err != nil {
+		t.Fatalf("GetBillingEvents failed: %v", err)
+	}
+
+	if len(events) != 2 {
+		t.Errorf("Expected 2 events, got %d", len(events))
+	}
+
+	// Проверяем порядок (сначала старые, потом новые — или наоборот, зависит от реализации)
+	foundTopup := false
+	foundUsage := false
+	for _, e := range events {
+		if e.Type == "balance_topup" && e.RealAmountRub == 1000 {
+			foundTopup = true
+		}
+		if e.Type == "pay_as_you_go" && e.RealAmountRub == -50 {
+			foundUsage = true
+		}
+	}
+	if !foundTopup {
+		t.Error("Expected balance_topup event")
+	}
+	if !foundUsage {
+		t.Error("Expected pay_as_you_go event")
+	}
+}
