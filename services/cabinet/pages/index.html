@@ -524,10 +524,12 @@
         /* Legal footer */
         .legal-footer {
             text-align: center;
-            padding: 16px;
+            padding: 16px 32px;
             font-size: 12px;
             color: var(--text-secondary);
             border-top: 1px solid var(--border);
+            background: var(--surface);
+            flex-shrink: 0;
         }
         .legal-footer a { color: var(--primary); text-decoration: none; }
         .legal-footer a:hover { text-decoration: underline; }
@@ -535,6 +537,7 @@
         @media (max-width: 768px) {
             .sidebar { display: none; }
             .content { padding: 16px; }
+            .legal-footer { padding: 16px; }
             .stats-grid { grid-template-columns: 1fr; }
             .form-row { grid-template-columns: 1fr; }
         }
@@ -830,10 +833,12 @@
                 </div>
             </div>
 
-            <div class="legal-footer">
-                <a href="/legal/privacy" target="_blank">Политика обработки ПДн</a> ·
-                <a href="/legal/terms" target="_blank">Условия использования</a>
-            </div>
+        </div>
+
+        <div class="legal-footer">
+            <a href="/legal/privacy" target="_blank">Политика обработки ПДн</a> ·
+            <a href="/legal/terms" target="_blank">Условия использования</a> ·
+            <a href="mailto:support@adocs.ru">Поддержка</a>
         </div>
     </main>
 </div>
