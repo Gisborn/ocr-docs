@@ -924,7 +924,7 @@ function navigate(page) {
     event.currentTarget.classList.add('active');
     const titles = { dashboard: 'Обзор', billing: 'Биллинг', usage: 'Потребление', keys: 'API-ключи' };
     document.getElementById('pageTitle').textContent = titles[page];
-    if (page === 'billing') loadBalance();
+    if (page === 'billing') { loadBalance(); loadHistory(); }
     if (page === 'keys') loadApiKeys();
     if (page === 'usage') initUsageDates();
 }
@@ -1053,7 +1053,43 @@ async function confirmTopup() {
         });
         hideModal('topupModal');
         loadBalance();
+        loadHistory();
     } catch (e) { alert(e.message); }
+}
+
+async function loadHistory() {
+    try {
+        const res = await fetch(`${API_BASE}/api/v1/history`, { headers: { 'Authorization': 'Bearer ' + sessionToken } });
+        if (!res.ok) throw new Error('err');
+        const events = await res.json();
+        const tbody = document.getElementById('historyTable');
+        if (!events || !events.length) {
+            tbody.innerHTML = '<tr><td colspan="4" class="empty-state">Нет операций</td></tr>';
+            return;
+        }
+        tbody.innerHTML = events.map(e => {
+            const typeMap = {
+                'balance_topup': 'Пополнение',
+                'subscription_charge': 'Списание подписки',
+                'upgrade_payment': 'Апгрейд',
+                'upgrade_bonus': 'Бонус апгрейда',
+                'prepaid_usage': 'Расход prepaid',
+                'pay_as_you_go': 'Pay-as-you-go',
+                'subscription_expired': 'Истечение подписки',
+                'refund': 'Возврат'
+            };
+            const typeLabel = typeMap[e.type] || e.type;
+            const amount = (e.real_amount_rub || 0) + (e.prepaid_amount_rub || 0);
+            const amountStr = amount > 0 ? '+' + amount.toFixed(2) + ' ₽' : amount.toFixed(2) + ' ₽';
+            const date = e.created_at ? new Date(e.created_at).toLocaleDateString('ru-RU') : '-';
+            return `<tr>
+                <td>${date}</td>
+                <td>${escapeHtml(typeLabel)}</td>
+                <td style="color:${amount > 0 ? 'var(--success)' : 'var(--danger)'};font-weight:600">${amountStr}</td>
+                <td><span class="badge badge-success">Выполнено</span></td>
+            </tr>`;
+        }).join('');
+    } catch (e) { console.error(e); }
 }
 
 // ---------- API Keys ----------

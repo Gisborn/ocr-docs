@@ -148,6 +148,8 @@ func main() {
 			} else {
 				http.Error(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
 			}
+		case path == "/api/v1/history":
+			httpHandler.GetHistory(w, r)
 		default:
 			http.Error(w, `{"error":"not found"}`, http.StatusNotFound)
 		}

@@ -115,6 +115,8 @@ func main() {
 			} else {
 				httpHandler.CreateSubscription(w, r)
 			}
+		} else if strings.Contains(path, "/events") {
+			httpHandler.GetBillingEvents(w, r)
 		} else if strings.Contains(path, "/balance") {
 			httpHandler.GetBalance(w, r)
 		} else if strings.Contains(path, "/topup") {

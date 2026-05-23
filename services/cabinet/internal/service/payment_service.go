@@ -199,6 +199,42 @@ func (s *PaymentService) GetBalance(ctx context.Context, accountID int64) (map[s
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		return nil, fmt.Errorf("failed to decode balance response: %w", err)
 	}
-	
+
+	return result, nil
+}
+
+// GetBillingEvents получает историю биллинг-событий из Billing Service
+func (s *PaymentService) GetBillingEvents(ctx context.Context, accountID int64) ([]map[string]interface{}, error) {
+	if s.billingURL == "" {
+		return nil, fmt.Errorf("billing service not configured")
+	}
+
+	eventsURL := fmt.Sprintf("%s/accounts/%d/events", s.billingURL, accountID)
+
+	req, err := http.NewRequestWithContext(ctx, "GET", eventsURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create events request: %w", err)
+	}
+
+	if s.billingToken != "" {
+		req.Header.Set("X-Service-Token", s.billingToken)
+	}
+
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("billing service unavailable: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("billing service returned error: %d", resp.StatusCode)
+	}
+
+	var result []map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("failed to decode events response: %w", err)
+	}
+
 	return result, nil
 }

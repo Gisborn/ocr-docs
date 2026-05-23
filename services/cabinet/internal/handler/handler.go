@@ -508,3 +508,26 @@ func (h *Handler) CreateSubscription(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(sub)
 }
+
+// GetHistory возвращает историю биллинг-событий организации
+func (h *Handler) GetHistory(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
+		return
+	}
+
+	accountID := middleware.GetBillingAccountID(r.Context())
+	if accountID == 0 {
+		http.Error(w, `{"error":"billing account not found"}`, http.StatusBadRequest)
+		return
+	}
+
+	events, err := h.paymentService.GetBillingEvents(r.Context(), accountID)
+	if err != nil {
+		http.Error(w, `{"error":"failed to get history"}`, http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(events)
+}

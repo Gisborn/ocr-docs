@@ -299,6 +299,39 @@ func (h *Handler) GetAccountSubscription(w http.ResponseWriter, r *http.Request)
 	json.NewEncoder(w).Encode(sub)
 }
 
+// GetBillingEvents godoc
+// @Summary Get billing events history
+// @Description Get all billing events for an account
+// @Tags accounts
+// @Accept json
+// @Produce json
+// @Param id path int true "Account ID"
+// @Success 200 {array} models.BillingEvent
+// @Failure 400 {object} ErrorResponse
+// @Failure 500 {object} ErrorResponse
+// @Router /accounts/{id}/events [get]
+func (h *Handler) GetBillingEvents(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	accountID, err := extractAccountID(r.URL.Path)
+	if err != nil {
+		http.Error(w, "Invalid account ID", http.StatusBadRequest)
+		return
+	}
+
+	events, err := h.subService.GetBillingEvents(r.Context(), accountID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(events)
+}
+
 // CreateSubscription godoc
 // @Summary Create subscription
 // @Description Create a new subscription for an account

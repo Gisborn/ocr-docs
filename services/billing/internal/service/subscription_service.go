@@ -352,6 +352,11 @@ func (s *SubscriptionService) RecalculateBalance(ctx context.Context, accountID 
 	return snapshot, nil
 }
 
+// GetBillingEvents получает историю биллинг-событий счёта
+func (s *SubscriptionService) GetBillingEvents(ctx context.Context, accountID int64) ([]*models.BillingEvent, error) {
+	return s.repo.GetBillingEventsSince(ctx, accountID, time.Time{})
+}
+
 // getTariffByID получает тариф по ID (вспомогательный метод)
 func (s *SubscriptionService) getTariffByID(ctx context.Context, id int16) (*models.Tariff, error) {
 	return s.repo.GetTariff(ctx, id)
