@@ -170,7 +170,8 @@ JSON-ответ → Клиент
 - Последовательность: OCR → нормализация → ответ
 - OCR: Yandex Vision v2 с моделями (`passport`, `driver-license-front` и др.)
   - Structured model возвращает готовые entities без ручного парсинга
-  - Fallback на generic `page` модель + текстовый парсинг при неполных полях
+  - **Ограничение:** structured model НЕ возвращает confidence по полям — используется дефолтное значение 0.90
+  - Fallback на generic `page` модель + текстовый парсинг при неполных полях (там confidence есть на уровне блоков)
   - Fallback на VK Vision v1 при 5xx / таймауте
 - Stateless: изображение только в RAM, на диск не пишется
 - В v1 вызывается напрямую (синхронно), Yandex Message Queue используется только в планируемой v2

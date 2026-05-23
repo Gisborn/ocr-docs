@@ -202,6 +202,11 @@ Swagger UI доступен для каждого сервиса:
 - **Billing**: http://localhost:8081/swagger/
 - **Cabinet**: http://localhost:8084/swagger/
 
+### Known Limitations
+
+**OCR Confidence (Yandex Vision v2 structured model):**
+Yandex Vision API v2 (`model=passport`) возвращает структурированные сущности без confidence по полям. В ответе API-Scan блок `confidences` заполняется дефолтным значением `0.90` для всех полей. Это оценочное значение, не фактическая точность OCR. Для получения реального confidence используйте generic `page` модель (параметр `model=page`) или VK Vision.
+
 ---
 
 ## Business Processes
