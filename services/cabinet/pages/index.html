@@ -1348,13 +1348,15 @@ async function selectTariff(code) {
         const res = await fetch(`${API_BASE}/api/v1/subscription`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + sessionToken },
-            body: JSON.stringify({ tariff_code: code })
+            body: JSON.stringify({ tariff_code: code, payment_method: 'balance' })
         });
         if (!res.ok) {
             const err = await res.json().catch(() => ({}));
+            if (res.status === 402 || err.error === 'insufficient balance') {
+                throw new Error('Недостаточно средств на балансе. Пополните баланс и попробуйте снова.');
+            }
             if (err.error) throw new Error(err.error);
-            // Fallback for demo: just show message
-            throw new Error('Эндпоинт подписки в разработке. Свяжитесь с нами для смены тарифа.');
+            throw new Error('Не удалось сменить тариф. Попробуйте позже или свяжитесь с поддержкой.');
         }
         alert('Тариф успешно изменён!');
         loadTariff();

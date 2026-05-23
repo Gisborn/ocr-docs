@@ -89,6 +89,14 @@ func (s *SubscriptionService) CreateSubscription(ctx context.Context, accountID 
 		return nil, fmt.Errorf("tariff not found: %w", err)
 	}
 
+	// Валидация и default payment method
+	if req.PaymentMethod == "" {
+		req.PaymentMethod = "balance"
+	}
+	if req.PaymentMethod != "balance" && req.PaymentMethod != "card" {
+		return nil, fmt.Errorf("invalid payment_method: %s", req.PaymentMethod)
+	}
+
 	// Проверяем баланс
 	balance, err := s.GetBalance(ctx, accountID)
 	if err != nil {

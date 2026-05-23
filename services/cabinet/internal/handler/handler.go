@@ -500,6 +500,10 @@ func (h *Handler) CreateSubscription(w http.ResponseWriter, r *http.Request) {
 
 	sub, err := h.subService.CreateSubscription(r.Context(), accountID, &req)
 	if err != nil {
+		if err.Error() == "insufficient balance" {
+			http.Error(w, `{"error":"insufficient balance"}`, http.StatusPaymentRequired)
+			return
+		}
 		http.Error(w, fmt.Sprintf(`{"error":"%s"}`, err.Error()), http.StatusInternalServerError)
 		return
 	}

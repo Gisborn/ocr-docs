@@ -107,6 +107,9 @@ func (s *SubscriptionService) CreateSubscription(ctx context.Context, accountID 
 
 	if resp.StatusCode != http.StatusCreated {
 		body, _ := io.ReadAll(resp.Body)
+		if resp.StatusCode == http.StatusPaymentRequired {
+			return nil, fmt.Errorf("insufficient balance")
+		}
 		return nil, fmt.Errorf("billing service error: %s", string(body))
 	}
 
