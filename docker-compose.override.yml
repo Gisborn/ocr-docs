@@ -1,0 +1,8 @@
+# Development override: hot-reload frontend without rebuilding Go binary
+# Usage: docker compose -f docker-compose.yml -f docker-compose.override.yml up -d cabinet
+
+services:
+  cabinet:
+    volumes:
+      - ./services/cabinet/pages:/root/pages:ro
+      - ./docs/legal:/root/docs/legal:ro
