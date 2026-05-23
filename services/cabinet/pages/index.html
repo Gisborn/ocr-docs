@@ -213,6 +213,33 @@
         .btn-success { background: var(--success); color: #fff; }
         .btn-danger { background: var(--danger); color: #fff; }
         .btn-sm { padding: 6px 12px; font-size: 13px; }
+        .btn-outline-light { background: transparent; border: 1px solid rgba(255,255,255,0.25); color: #fff; }
+        .btn-outline-light:hover { background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.4); }
+
+        /* Tariff cards */
+        .tariff-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
+        .tariff-card {
+            background: var(--surface);
+            border: 2px solid var(--border);
+            border-radius: var(--radius);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            transition: all 0.2s;
+        }
+        .tariff-card:hover { border-color: var(--primary); transform: translateY(-2px); box-shadow: var(--shadow-lg); }
+        .tariff-card.current { border-color: var(--success); background: #f0fdf4; }
+        .tariff-card .tariff-name { font-size: 18px; font-weight: 700; }
+        .tariff-card .tariff-price { font-size: 24px; font-weight: 700; color: var(--primary); }
+        .tariff-card .tariff-desc { font-size: 13px; color: var(--text-secondary); flex: 1; }
+        .tariff-card .tariff-features { list-style: none; padding: 0; margin: 0; font-size: 13px; color: var(--text-secondary); }
+        .tariff-card .tariff-features li { padding: 4px 0; display: flex; align-items: center; gap: 6px; }
+        .tariff-card .tariff-features li::before { content: '✓'; color: var(--success); font-weight: 700; }
+
+        /* Stat card action */
+        .stat-card .stat-action { margin-top: 4px; }
+        .stat-card .stat-action .btn { padding: 6px 12px; font-size: 12px; }
 
         /* Table */
         .table-wrap { overflow-x: auto; }
@@ -529,7 +556,7 @@
                     <div class="user-org" id="userOrg">-</div>
                 </div>
             </div>
-            <button class="btn btn-outline btn-sm" style="width:100%;margin-top:12px" onclick="logout()">Выйти</button>
+            <button class="btn btn-outline-light btn-sm" style="width:100%;margin-top:12px" onclick="logout()">Выйти</button>
         </div>
     </aside>
 
@@ -550,35 +577,33 @@
                         <div class="stat-label">Баланс (on-demand)</div>
                         <div class="stat-value primary" id="dashBalance">0 ₽</div>
                         <div class="stat-delta">Доступно для списания</div>
+                        <div class="stat-action">
+                            <button class="btn btn-primary" onclick="navigate('billing');showTopupModal()">Пополнить</button>
+                        </div>
                     </div>
                     <div class="stat-card">
                         <div class="stat-label">Остаток пакета</div>
                         <div class="stat-value success" id="dashPkg">0 оп.</div>
                         <div class="stat-delta">Предоплаченных операций</div>
+                        <div class="stat-action">
+                            <button class="btn btn-outline" onclick="navigate('billing')">Управление пакетом</button>
+                        </div>
                     </div>
                     <div class="stat-card">
                         <div class="stat-label">API-ключей</div>
                         <div class="stat-value" id="dashKeys">0</div>
                         <div class="stat-delta">Активных ключей</div>
+                        <div class="stat-action">
+                            <button class="btn btn-outline" onclick="navigate('keys');showKeyModal()">Создать ключ</button>
+                        </div>
                     </div>
                     <div class="stat-card">
                         <div class="stat-label">Распознаваний (мес)</div>
                         <div class="stat-value warning" id="dashUsage">0</div>
                         <div class="stat-delta">За текущий месяц</div>
-                    </div>
-                </div>
-
-                <div class="card">
-                    <div class="card-header">
-                        <div>
-                            <div class="card-title">Быстрые действия</div>
-                            <div class="card-subtitle">Частые операции в одном месте</div>
+                        <div class="stat-action">
+                            <button class="btn btn-outline" onclick="navigate('usage')">Отчёт</button>
                         </div>
-                    </div>
-                    <div style="display:flex;gap:12px;flex-wrap:wrap">
-                        <button class="btn btn-primary" onclick="navigate('billing');showTopupModal()">Пополнить баланс</button>
-                        <button class="btn btn-outline" onclick="navigate('keys');showKeyModal()">Создать API-ключ</button>
-                        <button class="btn btn-outline" onclick="navigate('usage')">Посмотреть отчёт</button>
                     </div>
                 </div>
 
@@ -586,7 +611,7 @@
                     <div class="card-header">
                         <div>
                             <div class="card-title">Тарифный план</div>
-                            <div class="card-subtitle">Текущие условия обслуживания</div>
+                            <div class="card-subtitle">Выберите подходящий тариф или управляйте подпиской</div>
                         </div>
                     </div>
                     <div id="tariffInfo">
@@ -860,6 +885,7 @@ async function enterApp() {
     await loadOrgData();
     await loadBalance();
     await loadApiKeys();
+    await loadTariff();
 }
 
 async function loadOrgData() {
@@ -957,7 +983,7 @@ async function createKey() {
         if (!res.ok) throw new Error((await res.json()).error);
         const data = await res.json();
         hideModal('keyModal');
-        alert('Ключ создан: ' + data.key + '\n\nСохраните его сейчас, он больше не будет показан!');
+        alert('Ключ создан: ' + data.full_key + '\n\nСохраните его сейчас, он больше не будет показан!');
         loadApiKeys();
     } catch (e) { alert(e.message); }
 }
@@ -967,6 +993,122 @@ async function revokeKey(id) {
         await fetch(`${API_BASE}/api/v1/api-keys/${id}`, { method: 'DELETE', headers: { 'Authorization': 'Bearer ' + sessionToken } });
         loadApiKeys();
     } catch (e) { alert(e.message); }
+}
+
+// ---------- Tariff & Subscription ----------
+const TARIFFS = [
+    {
+        code: 'free',
+        name: 'Free',
+        price: '0 ₽',
+        period: '/мес',
+        description: 'Для тестирования и малого объёма',
+        features: ['10 распознаваний в месяц', 'Email-поддержка', 'Базовая точность']
+    },
+    {
+        code: 'basic',
+        name: 'Basic',
+        price: '3 ₽',
+        period: '/операция',
+        description: 'Оплата по факту использования',
+        features: ['Безлимитные распознавания', 'Приоритетная обработка', 'Стандартная поддержка']
+    },
+    {
+        code: 'pro',
+        name: 'Pro',
+        price: '10 000 ₽',
+        period: '/мес',
+        description: 'Предоплаченный пакет 5 000 операций',
+        features: ['5 000 операций в пакете', 'Перерасход по Basic-цене', 'Приоритетная поддержка', 'API v2 (async)']
+    }
+];
+
+async function loadTariff() {
+    let currentCode = 'basic';
+    let sub = null;
+    try {
+        const res = await fetch(`${API_BASE}/api/v1/subscription`, { headers: { 'Authorization': 'Bearer ' + sessionToken } });
+        if (res.ok) {
+            sub = await res.json();
+            currentCode = sub.tariff_code || 'basic';
+        }
+    } catch (e) { console.log('No subscription endpoint yet, defaulting to basic'); }
+    renderTariffSection(currentCode, sub);
+}
+
+function renderTariffSection(currentCode, sub) {
+    const container = document.getElementById('tariffInfo');
+    const currentTariff = TARIFFS.find(t => t.code === currentCode) || TARIFFS[1];
+
+    if (sub && sub.status === 'active' && currentCode !== 'free' && currentCode !== 'basic') {
+        // Active paid subscription view
+        const expires = sub.expires_at ? new Date(sub.expires_at).toLocaleDateString('ru-RU') : '—';
+        container.innerHTML = `
+            <div style="display:flex;align-items:center;gap:16px;margin-bottom:20px;padding:16px;background:#f0fdf4;border-radius:12px;border:1px solid #bbf7d0;">
+                <div style="font-size:32px">⭐</div>
+                <div>
+                    <div style="font-size:18px;font-weight:700;color:#065f46">${escapeHtml(currentTariff.name)}</div>
+                    <div style="font-size:13px;color:#047857">Активна до ${expires} · ${sub.auto_renew ? 'автопродление вкл.' : 'автопродление выкл.'}</div>
+                </div>
+                <div style="margin-left:auto">
+                    <button class="btn btn-outline" onclick="showTariffCarousel()">Сменить тариф</button>
+                </div>
+            </div>
+            <div id="tariffCarousel" style="display:none">
+                ${renderTariffCards(currentCode)}
+            </div>
+        `;
+    } else {
+        // Carousel for non-subscribed or free/basic
+        container.innerHTML = `
+            <p style="color:var(--text-secondary);font-size:14px;margin-bottom:16px">Сейчас вы на тарифе <strong>${escapeHtml(currentTariff.name)}</strong>. Выберите подходящий план:</p>
+            <div class="tariff-grid">
+                ${renderTariffCards(currentCode)}
+            </div>
+        `;
+    }
+}
+
+function renderTariffCards(currentCode) {
+    return TARIFFS.map(t => `
+        <div class="tariff-card ${t.code === currentCode ? 'current' : ''}">
+            <div class="tariff-name">${escapeHtml(t.name)}</div>
+            <div class="tariff-price">${t.price}<span style="font-size:14px;color:var(--text-secondary);font-weight:500">${t.period}</span></div>
+            <div class="tariff-desc">${escapeHtml(t.description)}</div>
+            <ul class="tariff-features">
+                ${t.features.map(f => `<li>${escapeHtml(f)}</li>`).join('')}
+            </ul>
+            ${t.code === currentCode
+                ? '<button class="btn btn-success" style="width:100%" disabled>Текущий тариф</button>'
+                : `<button class="btn btn-primary" style="width:100%" onclick="selectTariff('${t.code}')">Выбрать</button>`
+            }
+        </div>
+    `).join('');
+}
+
+function showTariffCarousel() {
+    const el = document.getElementById('tariffCarousel');
+    if (el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+
+async function selectTariff(code) {
+    try {
+        const res = await fetch(`${API_BASE}/api/v1/subscription`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + sessionToken },
+            body: JSON.stringify({ tariff_code: code })
+        });
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            if (err.error) throw new Error(err.error);
+            // Fallback for demo: just show message
+            throw new Error('Эндпоинт подписки в разработке. Свяжитесь с нами для смены тарифа.');
+        }
+        alert('Тариф успешно изменён!');
+        loadTariff();
+    } catch (e) {
+        alert(e.message || 'Не удалось сменить тариф. Попробуйте позже или свяжитесь с поддержкой.');
+    }
 }
 
 // ---------- Usage Report ----------

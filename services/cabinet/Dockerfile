@@ -1,16 +1,22 @@
+# syntax=docker/dockerfile:1
 FROM golang:1.25-alpine AS builder
 
 WORKDIR /app
 
 # Копируем go.mod и go.sum
 COPY go.mod go.sum ./
-RUN go mod download
+
+# Скачиваем зависимости с кэшем (BuildKit)
+RUN --mount=type=cache,target=/go/pkg/mod \
+    go mod download
 
 # Копируем весь код
 COPY . .
 
-# Собираем приложение
-RUN CGO_ENABLED=0 GOOS=linux go build -o cabinet-service ./services/cabinet/cmd/server
+# Собираем приложение с кэшем компиляции (BuildKit)
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    CGO_ENABLED=0 GOOS=linux go build -o cabinet-service ./services/cabinet/cmd/server
 
 # Финальный образ
 FROM alpine:latest

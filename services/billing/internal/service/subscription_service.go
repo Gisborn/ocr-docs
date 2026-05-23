@@ -55,6 +55,19 @@ type Balance struct {
 	CalculatedAt      time.Time `json:"calculated_at"`
 }
 
+// GetActiveSubscriptionResponse ответ с информацией о подписке
+type GetActiveSubscriptionResponse struct {
+	SubscriptionID   int32   `json:"subscription_id"`
+	AccountID        int64   `json:"account_id"`
+	TariffCode       string  `json:"tariff_code"`
+	TariffName       string  `json:"tariff_name"`
+	Status           string  `json:"status"`
+	StartedAt        string  `json:"started_at"`
+	ExpiresAt        string  `json:"expires_at"`
+	AutoRenew        bool    `json:"auto_renew"`
+	InitialPrepaidRub float64 `json:"initial_prepaid_rub"`
+}
+
 // Tariff информация о тарифе
 type Tariff struct {
 	Code          string  `json:"code"`
@@ -252,6 +265,36 @@ func (s *SubscriptionService) GetBalance(ctx context.Context, accountID int64) (
 	}
 
 	return balance, nil
+}
+
+// GetActiveSubscription получает активную подписку счета
+func (s *SubscriptionService) GetActiveSubscription(ctx context.Context, accountID int64) (*GetActiveSubscriptionResponse, error) {
+	sub, err := s.repo.GetActiveSubscription(ctx, accountID)
+	if err != nil {
+		return nil, err
+	}
+
+	tariffVersion, err := s.repo.GetTariffVersion(ctx, sub.TariffVersionID)
+	if err != nil {
+		return nil, err
+	}
+
+	tariff, err := s.getTariffByID(ctx, tariffVersion.TariffID)
+	if err != nil {
+		return nil, err
+	}
+
+	return &GetActiveSubscriptionResponse{
+		SubscriptionID:    sub.ID,
+		AccountID:         sub.AccountID,
+		TariffCode:        tariff.Code,
+		TariffName:        tariff.Name,
+		Status:            sub.Status,
+		StartedAt:         sub.StartedAt.Format("2006-01-02T15:04:05Z"),
+		ExpiresAt:         sub.ExpiresAt.Format("2006-01-02T15:04:05Z"),
+		AutoRenew:         sub.AutoRenew,
+		InitialPrepaidRub: sub.InitialPrepaidRub,
+	}, nil
 }
 
 // CreateTopupEvent создает событие пополнения баланса

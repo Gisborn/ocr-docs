@@ -61,12 +61,13 @@ func main() {
 	authService := service.NewAuthService(repo, billingURL, billingToken)
 	apiKeyService := service.NewAPIKeyService(repo)
 	paymentService := service.NewPaymentService(pool, billingURL, billingToken)
+	subscriptionService := service.NewSubscriptionService(repo, billingURL, billingToken)
 
 	// Создаем middleware
 	authMiddleware := middleware.NewAuthMiddleware(repo)
 
 	// Создаем HTTP handler
-	httpHandler := handler.NewHandler(authService, apiKeyService, paymentService)
+	httpHandler := handler.NewHandler(authService, apiKeyService, paymentService, subscriptionService)
 
 	// Настраиваем маршруты
 	mux := http.NewServeMux()
@@ -139,6 +140,14 @@ func main() {
 			httpHandler.ConfirmMockPayment(w, r)
 		case path == "/api/v1/balance":
 			httpHandler.GetBalance(w, r)
+		case path == "/api/v1/subscription":
+			if r.Method == http.MethodGet {
+				httpHandler.GetSubscription(w, r)
+			} else if r.Method == http.MethodPost {
+				httpHandler.CreateSubscription(w, r)
+			} else {
+				http.Error(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
+			}
 		default:
 			http.Error(w, `{"error":"not found"}`, http.StatusNotFound)
 		}

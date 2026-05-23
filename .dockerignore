@@ -1,0 +1,47 @@
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Documentation
+docs/
+*.md
+AGENTS.md
+CONTRIBUTING.md
+LOCAL_TESTING.md
+README.md
+
+# CI/CD (not needed for runtime)
+.github/
+
+# Infrastructure (not needed for runtime)
+infra/terraform/
+infra/nginx/
+
+# Tests
+tests/
+*_test.go
+
+# Scripts (not needed for runtime)
+scripts/
+
+# Environment files
+.env
+.env.example
+.env.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build artifacts (if any)
+server.exe
+dist/
+build/

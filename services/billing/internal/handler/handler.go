@@ -266,6 +266,39 @@ func (h *Handler) TopupBalance(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// GetAccountSubscription godoc
+// @Summary Get active subscription
+// @Description Get active subscription for an account
+// @Tags subscriptions
+// @Accept json
+// @Produce json
+// @Param id path int true "Account ID"
+// @Success 200 {object} service.GetActiveSubscriptionResponse
+// @Failure 404 {object} ErrorResponse
+// @Failure 500 {object} ErrorResponse
+// @Router /accounts/{id}/subscriptions [get]
+func (h *Handler) GetAccountSubscription(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	accountID, err := extractAccountID(r.URL.Path)
+	if err != nil {
+		http.Error(w, "Invalid account ID", http.StatusBadRequest)
+		return
+	}
+
+	sub, err := h.subService.GetActiveSubscription(r.Context(), accountID)
+	if err != nil {
+		http.Error(w, `{"error":"no active subscription"}`, http.StatusNotFound)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(sub)
+}
+
 // CreateSubscription godoc
 // @Summary Create subscription
 // @Description Create a new subscription for an account

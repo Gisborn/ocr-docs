@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -15,14 +16,16 @@ type Handler struct {
 	authService    *service.AuthService
 	apiKeyService  *service.APIKeyService
 	paymentService *service.PaymentService
+	subService     *service.SubscriptionService
 }
 
 // NewHandler создает новый handler
-func NewHandler(auth *service.AuthService, apiKey *service.APIKeyService, payment *service.PaymentService) *Handler {
+func NewHandler(auth *service.AuthService, apiKey *service.APIKeyService, payment *service.PaymentService, sub *service.SubscriptionService) *Handler {
 	return &Handler{
 		authService:    auth,
 		apiKeyService:  apiKey,
 		paymentService: payment,
+		subService:     sub,
 	}
 }
 
@@ -447,4 +450,61 @@ func (h *Handler) GetBalance(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(balance)
+}
+
+// GetSubscription возвращает активную подписку организации
+func (h *Handler) GetSubscription(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
+		return
+	}
+
+	accountID := middleware.GetBillingAccountID(r.Context())
+	if accountID == 0 {
+		http.Error(w, `{"error":"billing account not found"}`, http.StatusBadRequest)
+		return
+	}
+
+	sub, err := h.subService.GetSubscription(r.Context(), accountID)
+	if err != nil {
+		if err.Error() == "no active subscription" {
+			http.Error(w, `{"error":"no active subscription"}`, http.StatusNotFound)
+			return
+		}
+		http.Error(w, `{"error":"failed to get subscription"}`, http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(sub)
+}
+
+// CreateSubscription создает подписку для организации
+func (h *Handler) CreateSubscription(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
+		return
+	}
+
+	accountID := middleware.GetBillingAccountID(r.Context())
+	if accountID == 0 {
+		http.Error(w, `{"error":"billing account not found"}`, http.StatusBadRequest)
+		return
+	}
+
+	var req service.CreateSubscriptionRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, `{"error":"invalid request"}`, http.StatusBadRequest)
+		return
+	}
+
+	sub, err := h.subService.CreateSubscription(r.Context(), accountID, &req)
+	if err != nil {
+		http.Error(w, fmt.Sprintf(`{"error":"%s"}`, err.Error()), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(sub)
 }

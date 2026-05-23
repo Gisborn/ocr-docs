@@ -110,6 +110,8 @@ func main() {
 		} else if strings.Contains(path, "/subscriptions") {
 			if strings.Contains(path, "/upgrade") {
 				httpHandler.Upgrade(w, r)
+			} else if r.Method == http.MethodGet {
+				httpHandler.GetAccountSubscription(w, r)
 			} else {
 				httpHandler.CreateSubscription(w, r)
 			}
