@@ -4,7 +4,9 @@
 .gitattributes
 
 # Documentation
-docs/
+docs/*
+!docs/legal
+!docs/legal/**
 *.md
 AGENTS.md
 CONTRIBUTING.md
