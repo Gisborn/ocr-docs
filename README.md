@@ -23,6 +23,7 @@ A demo instance is deployed on a Timeweb VPS (Ubuntu 24.04) and accessible via H
 
 | Service | URL |
 |---------|-----|
+| Landing | https://adocs.ru |
 | Cabinet Web UI | https://lk.adocs.ru |
 | API Gateway | https://api.adocs.ru |
 
@@ -30,7 +31,7 @@ A demo instance is deployed on a Timeweb VPS (Ubuntu 24.04) and accessible via H
 - Server: Timeweb microserver, IP `89.223.68.18`
 - Reverse proxy: `jwilder/nginx-proxy` + `letsencrypt-nginx-proxy-companion` (Let's Encrypt)
 - Docker network `net` shared with nginx-proxy
-- All 5 services run in Docker containers via `infra/docker/docker-compose.demo.yml`
+- All 6 services run in Docker containers via `infra/docker/docker-compose.demo.yml`
 - Database migrations applied (main + billing)
 - Demo top-ups supported via `mock_payments` table
 
@@ -50,6 +51,8 @@ A demo instance is deployed on a Timeweb VPS (Ubuntu 24.04) and accessible via H
 │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────────┐    │
 │  │   1C ERP    │  │   Web App   │  │ Mobile App  │  │  Cabinet (Web)  │    │
 │  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘  └────────┬────────┘    │
+│                                                                       │
+│                              Landing (Web)                              │
 └─────────┼────────────────┼────────────────┼─────────────────┼─────────────┘
           │                │                │                 │
           └────────────────┴────────────────┘                 │
@@ -76,8 +79,10 @@ A demo instance is deployed on a Timeweb VPS (Ubuntu 24.04) and accessible via H
 │ • OCR Processing│  │ • Accounts      │  │                 │  │ • Registration  │
 │ • Yandex Vision │  │ • Reserve/Commit│  │ • YooKassa      │  │ • Auth (sessions│
 │ • VK Fallback   │  │ • Subscriptions │  │   Webhooks      │  │ • API Keys mgmt │
-│ • Normalizer    │  │ • Payments      │  │ • IP Whitelist  │  │ • Web UI        │
-└────────┬────────┘  └────────┬────────┘  └─────────────────┘  └─────────────────┘
+│ • Normalizer    │  │ • Payments      │  │ • IP Whitelist  │  │ • Balance / Hist│
+└────────┬────────┘  └────────┬────────┘  └─────────────────┘  │ • Tariffs / Subs│
+                                                               │ • Web UI        │
+                                                               └─────────────────┘
          │                    │
          │           ┌────────┴────────┐
          │           │                 │
@@ -103,7 +108,8 @@ A demo instance is deployed on a Timeweb VPS (Ubuntu 24.04) and accessible via H
 | Billing | 8081 | billing_db | Payments, subscriptions, transactions |
 | Billing Webhook | 8082 | billing_db | YooKassa webhook handler |
 | Orchestrator | 8083 | - | OCR processing, Yandex/VK Vision |
-| Cabinet | 8084 | api_scan_main | Personal account, API keys, Web UI |
+| Cabinet | 8084 | api_scan_main | Personal account, API keys, billing, Web UI |
+| Landing | 8085 | - | Public landing page (adocs.ru) |
 | PostgreSQL (main) | 5432 / 15432 (demo) | api_scan | Organizations, users, keys, sessions |
 | PostgreSQL (billing) | 5433 / 15433 (demo) | billing_db | Accounts, transactions, billing |
 | Redis | 6379 | - | Cache, rate limiting, sessions |
@@ -172,7 +178,11 @@ Balance = Snapshot Balance + Events Since Snapshot - Active Reservations
 **Features**:
 - Organization registration
 - User authentication (sessions)
-- API key management (max 10 keys)
+- API key management (max 10 keys) with copy-to-clipboard modal
+- Balance display and top-up (mock / YooKassa)
+- Billing history (payments, charges, prepaid credits)
+- Tariff selection and subscription management
+- Dark / light theme toggle
 - Web UI at `/`
 - Swagger docs at `/swagger/`
 
@@ -189,7 +199,10 @@ Balance = Snapshot Balance + Events Since Snapshot - Active Reservations
 | `/api/v1/auth/login` | POST | No | Login |
 | `/api/v1/auth/logout` | POST | Session | Logout |
 | `/api/v1/api-keys` | GET | Session | List keys |
-| `/api/v1/api-keys` | POST | Session | Create key |
+| `/api/v1/api-keys` | POST | Session | Create key (returns full key once) |
+| `/api/v1/history` | GET | Session | Billing history (proxy to Billing) |
+| `/api/v1/subscription` | GET | Session | Active subscription |
+| `/api/v1/subscription` | POST | Session | Create / change subscription |
 | `/legal/privacy` | GET | No | Privacy policy (`text/markdown`) |
 | `/legal/terms` | GET | No | Terms of service (`text/markdown`) |
 
@@ -411,6 +424,7 @@ make health
 │   ├── billing/          # Payments & subscriptions
 │   ├── billing-webhook-yookassa/  # YooKassa webhooks
 │   ├── cabinet/          # Personal account + Web UI
+│   ├── landing/          # Public landing page
 │   └── orchestrator/     # OCR processing
 ├── pkg/                  # Shared libraries
 │   ├── logger/           # Logging middleware

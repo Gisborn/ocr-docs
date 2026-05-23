@@ -27,19 +27,20 @@
 
 **MVP реализован и протестирован!**
 
-Реализовано 5 микросервисов:
+Реализовано 6 сервисов:
 
 | Сервис | Статус | Порт | Описание |
 |--------|--------|------|----------|
 | API Gateway | ✅ Работает | 8080 (18080 на Windows) | Аутентификация, rate limiting, CORS |
-| Billing Service | ✅ Работает | 8081 (18081 на Windows) | Резервирование, фиксация, откат |
+| Billing Service | ✅ Работает | 8081 (18081 на Windows) | Резервирование, фиксация, подписки |
 | Billing Webhook | ✅ Работает | 8082 (18082 на Windows) | Вебхуки ЮКассы |
-| Cabinet Service | ✅ Работает | 8084 (18084 на Windows) | Web UI, управление API ключами |
+| Cabinet Service | ✅ Работает | 8084 (18084 на Windows) | Web UI, API ключи, биллинг, тарифы |
 | Orchestrator | ✅ Работает | 8083 (18083 на Windows) | OCR обработка |
+| Landing | ✅ Работает | 8085 (18085 на Windows) | Лендинг `adocs.ru` |
 
 **Демо-деплой завершён!**
 - Сервер: Timeweb microserver, Ubuntu 24.04, IP `89.223.68.18`
-- Домены: `api.adocs.ru` (API Gateway), `lk.adocs.ru` (Личный кабинет)
+- Домены: `adocs.ru` (лендинг), `api.adocs.ru` (API Gateway), `lk.adocs.ru` (Личный кабинет)
 - SSL: Let's Encrypt через jwilder/nginx-proxy + letsencrypt-nginx-proxy-companion
 - Все 5 сервисов работают в Docker-контейнерах, миграции применены
 - CI/CD: деплой через `workflow_dispatch` (ручной запуск)
@@ -60,8 +61,9 @@
 |----------|----------|
 | Сервер | Timeweb microserver, Ubuntu 24.04 |
 | IP | `89.223.68.18` |
-| API Gateway | `https://api.adocs.ru` |
+| Лендинг | `https://adocs.ru` |
 | Личный кабинет | `https://lk.adocs.ru` |
+| API Gateway | `https://api.adocs.ru` |
 | Reverse Proxy | `jwilder/nginx-proxy` + `letsencrypt-nginx-proxy-companion` |
 | SSL | Let's Encrypt (автообновление) |
 | Docker Compose | `infra/docker/docker-compose.demo.yml` |
@@ -271,11 +273,10 @@ file: <image_file>
 | 3 | Billing Service | Резервирование, фиксация, идемпотентность | ✅ Двухфазная модель работает, mock-пополнения добавлены |
 | 4 | API Gateway | Аутентификация, rate-limiting | ✅ Работает на `api.adocs.ru` |
 | 5 | API v1 | Эндпоинт `/v1/recognize` | ✅ Синхронный флоу готов |
-| 6 | Личный кабинет | Регистрация, ключи, баланс, тарифы, темы оформления | 🟡 UI + API готовы, email-верификация — НЕ готова |
+| 6 | Личный кабинет | Регистрация, ключи, баланс, тарифы, история биллинга, темы оформления | ✅ UI + API готовы, email-верификация — НЕ готова |
 | 7 | Тестирование и запуск | Нагрузочное, приёмочное, production | ⏳ Демо-деплой завершён, production — в планах |
 
 **Новые задачи после MVP:**
-- Лендинг `adocs.ru`
 - Email-верификация при регистрации
 - Production-деплой в Yandex Cloud
 - Интеграция с реальными OCR API (Yandex Vision, VK Vision)
@@ -313,15 +314,18 @@ file: <image_file>
 ```
 /
 ├── docs/                   # Документация
-├── infra/                  # Инфраструктура (Terraform)
+├── infra/                  # Инфраструктура (Terraform, Docker Compose)
 ├── migrations/             # SQL-миграции
 ├── services/
-│   ├── api-gateway/        # API Gateway конфигурация
+│   ├── api-gateway/        # API Gateway
 │   ├── billing/            # Billing Service
-│   ├── orchestrator/       # Core Orchestrator
-│   └── webapp/             # Личный кабинет
-├── shared/                 # Общие библиотеки
-└── tests/                  # Интеграционные тесты
+│   ├── billing-webhook-yookassa/  # Вебхуки ЮКассы
+│   ├── cabinet/            # Личный кабинет (backend + frontend)
+│   ├── landing/            # Лендинг
+│   └── orchestrator/       # Core Orchestrator
+├── pkg/                    # Общие библиотеки
+├── scripts/                # Утилиты
+└── tests/                  # Интеграционные и e2e тесты
 ```
 
 ### CI/CD (планируемый)

@@ -615,12 +615,14 @@ Authorization: Bearer <CABINET_TOKEN>
 Content-Type: application/json
 
 {
-  "tariff_id": "basic",
+  "tariff_code": "pro",
   "payment_method": "balance"
 }
 
--- Проверяем баланс >= 4000
--- billing_events: type='subscription_charge', real_amount_rub=-4000
+-- Проверяем real_balance >= base_price_rub
+-- billing_events:
+--   1. type='subscription_charge', real_amount_rub=-base_price_rub
+--   2. type='upgrade_bonus', prepaid_amount_rub=+prepaid_amount_rub (если тариф включает prepaid)
 -- subscriptions: создаем запись
 ```
 
