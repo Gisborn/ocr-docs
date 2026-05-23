@@ -405,6 +405,30 @@ Content-Type: application/json
 Response 200: {"status": "processed"}
 ```
 
+#### Получение активной подписки
+
+```http
+GET /accounts/456/subscriptions  -- billing_account_id
+Authorization: Bearer <service_token>
+
+Response 200:
+{
+  "subscription_id": 456,
+  "account_id": 456,
+  "tariff_code": "pro",
+  "tariff_name": "Pro",
+  "status": "active",
+  "started_at": "2025-03-15T10:00:00Z",
+  "expires_at": "2025-04-15T10:00:00Z",
+  "auto_renew": true,
+  "initial_prepaid_rub": 5000.00
+}
+
+Response 404: {"error":"no active subscription"}
+```
+
+**Назначение:** Cabinet Service вызывает для отображения текущего тарифа в личном кабинете. Если подписки нет — клиент видит базовый тариф `basic` (pay-as-you-go).
+
 #### Покупка подписки
 
 ```http
@@ -413,18 +437,15 @@ Content-Type: application/json
 Authorization: Bearer <service_token>
 
 {
-  "tariff_id": "pro",
+  "tariff_code": "pro",
   "payment_method": "balance"  -- или "card"
 }
 
 Response 201:
 {
-  "id": 456,
-  "tariff_id": "pro",
+  "subscription_id": 456,
   "status": "active",
-  "started_at": "2025-03-15T10:00:00Z",
-  "expires_at": "2025-04-15T10:00:00Z",
-  "prepaid_remaining_rub": 6000.00
+  "amount_charged_rub": 10000.00
 }
 ```
 
@@ -836,7 +857,7 @@ func GetBalance(orgID int64) {
 }
 ```
 
-### Получение баланса в ЛК
+### Получение баланса и подписки в ЛК
 
 ```go
 // Cabinet Service вызывает Billing (HTTP)
@@ -847,6 +868,17 @@ var balance struct {
 }
 json.NewDecoder(resp.Body).Decode(&balance)
 // Отображает в UI
+
+// Получение активной подписки
+resp, _ := http.Get(fmt.Sprintf("http://billing:8080/v1/accounts/%d/subscriptions", accountID))
+var sub struct {
+    TariffCode string `json:"tariff_code"`
+    Status     string `json:"status"`
+    ExpiresAt  string `json:"expires_at"`
+    AutoRenew  bool   `json:"auto_renew"`
+}
+json.NewDecoder(resp.Body).Decode(&sub)
+// Отображает текущий тариф и кнопку "Сменить тариф"
 ```
 
 ---
