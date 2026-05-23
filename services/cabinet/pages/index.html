@@ -916,7 +916,7 @@ async function confirmTopup() {
         });
         if (!res.ok) throw new Error((await res.json()).error);
         const data = await res.json();
-        await fetch(`${API_BASE}/api/v1/payments/${data.id}/confirm`, {
+        await fetch(`${API_BASE}/api/v1/payments/${data.payment_id}/confirm`, {
             method: 'POST', headers: { 'Authorization': 'Bearer ' + sessionToken }
         });
         hideModal('topupModal');
