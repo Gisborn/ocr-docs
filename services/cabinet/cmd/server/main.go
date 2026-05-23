@@ -89,31 +89,37 @@ func main() {
 
 	// Legal documents (публичные)
 	legalDocsPath := getEnv("LEGAL_DOCS_PATH", "docs/legal")
+	serviceName := getEnv("SERVICE_NAME", "A docs")
+	serviceTagline := getEnv("SERVICE_TAGLINE", "распознавание документов")
+	serviceDomain := getEnv("SERVICE_DOMAIN", "adocs.ru")
+
+	renderLegalDoc := func(w http.ResponseWriter, filename string) {
+		data, err := os.ReadFile(filepath.Join(legalDocsPath, filename))
+		if err != nil {
+			http.Error(w, `{"error":"document not found"}`, http.StatusNotFound)
+			return
+		}
+		content := string(data)
+		content = strings.ReplaceAll(content, "{{SERVICE_NAME}}", serviceName)
+		content = strings.ReplaceAll(content, "{{SERVICE_TAGLINE}}", serviceTagline)
+		content = strings.ReplaceAll(content, "{{SERVICE_DOMAIN}}", serviceDomain)
+		w.Header().Set("Content-Type", "text/markdown; charset=utf-8")
+		w.Write([]byte(content))
+	}
+
 	mux.HandleFunc("/legal/privacy", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			http.Error(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
 			return
 		}
-		data, err := os.ReadFile(filepath.Join(legalDocsPath, "privacy-policy.md"))
-		if err != nil {
-			http.Error(w, `{"error":"document not found"}`, http.StatusNotFound)
-			return
-		}
-		w.Header().Set("Content-Type", "text/markdown; charset=utf-8")
-		w.Write(data)
+		renderLegalDoc(w, "privacy-policy.md")
 	})
 	mux.HandleFunc("/legal/terms", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			http.Error(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
 			return
 		}
-		data, err := os.ReadFile(filepath.Join(legalDocsPath, "terms-of-service.md"))
-		if err != nil {
-			http.Error(w, `{"error":"document not found"}`, http.StatusNotFound)
-			return
-		}
-		w.Header().Set("Content-Type", "text/markdown; charset=utf-8")
-		w.Write(data)
+		renderLegalDoc(w, "terms-of-service.md")
 	})
 
 	// Protected API (с auth)

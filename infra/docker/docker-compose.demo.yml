@@ -123,10 +123,13 @@ services:
       BILLING_URL: "http://billing:8080"
       BILLING_SERVICE_TOKEN: "${BILLING_SERVICE_TOKEN}"
       LEGAL_DOCS_PATH: "docs/legal"
+      SERVICE_NAME: "${SERVICE_NAME:-A docs}"
+      SERVICE_TAGLINE: "${SERVICE_TAGLINE:-распознавание документов}"
+      SERVICE_DOMAIN: "${LANDING_DOMAIN:-adocs.ru}"
       VIRTUAL_HOST: "${CABINET_DOMAIN:-lk.adocs.ru}"
       VIRTUAL_PORT: "8080"
       LETSENCRYPT_HOST: "${CABINET_DOMAIN:-lk.adocs.ru}"
-      LETSENCRYPT_EMAIL: "${LETSENCRYPT_EMAIL:-support@aywaa.ru}"
+      LETSENCRYPT_EMAIL: "${LETSENCRYPT_EMAIL:-support@adocs.ru}"
     depends_on:
       postgres:
         condition: service_healthy
@@ -134,7 +137,7 @@ services:
         condition: service_started
     networks:
       - net
-    # Доступен через nginx-proxy: cabinet.aywaa.ru
+    # Доступен через nginx-proxy: lk.adocs.ru
 
   orchestrator:
     build:
@@ -194,7 +197,27 @@ services:
         condition: service_started
     networks:
       - net
-    # Доступен через nginx-proxy: api.aywaa.ru
+    # Доступен через nginx-proxy: api.adocs.ru
+
+  # ── Landing Page (adocs.ru) ──────────────────────────────────────
+  landing:
+    build:
+      context: ../..
+      dockerfile: services/landing/Dockerfile
+    image: ${GHCR_REGISTRY:-ghcr.io}/${GHCR_REPOSITORY}/landing:latest
+    container_name: api-scan-landing
+    restart: unless-stopped
+    environment:
+      SERVICE_NAME: "${SERVICE_NAME:-A docs}"
+      SERVICE_TAGLINE: "${SERVICE_TAGLINE:-распознавание документов}"
+      CABINET_URL: "https://${CABINET_DOMAIN:-lk.adocs.ru}"
+      VIRTUAL_HOST: "${LANDING_DOMAIN:-adocs.ru},www.${LANDING_DOMAIN:-adocs.ru}"
+      VIRTUAL_PORT: "8080"
+      LETSENCRYPT_HOST: "${LANDING_DOMAIN:-adocs.ru},www.${LANDING_DOMAIN:-adocs.ru}"
+      LETSENCRYPT_EMAIL: "${LETSENCRYPT_EMAIL:-support@adocs.ru}"
+    networks:
+      - net
+    # Доступен через nginx-proxy: adocs.ru
 
 volumes:
   postgres_data:

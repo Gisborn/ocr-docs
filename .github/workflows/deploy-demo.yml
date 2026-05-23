@@ -79,6 +79,16 @@ jobs:
           cache-from: type=gha,scope=orchestrator
           cache-to: type=gha,mode=max,scope=orchestrator
 
+      - name: Build and push Landing
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./services/landing/Dockerfile
+          push: true
+          tags: ${{ env.REGISTRY }}/gisborn/ocr-docs/landing:latest
+          cache-from: type=gha,scope=landing
+          cache-to: type=gha,mode=max,scope=landing
+
   deploy:
     name: Deploy to Timeweb Demo Server
     runs-on: ubuntu-latest

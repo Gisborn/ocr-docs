@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${SERVICE_NAME}</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            color: #fff;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 24px;
+        }
+        .logo {
+            font-size: 48px;
+            font-weight: 700;
+            letter-spacing: -1px;
+            margin-bottom: 12px;
+        }
+        .tagline {
+            font-size: 20px;
+            opacity: 0.9;
+            margin-bottom: 40px;
+        }
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 14px 28px;
+            border-radius: 10px;
+            border: none;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+        .btn-primary {
+            background: #fff;
+            color: #4f46e5;
+        }
+        .btn-primary:hover {
+            background: #f3f4f6;
+            transform: translateY(-1px);
+        }
+        .footer {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 16px;
+            font-size: 12px;
+            opacity: 0.7;
+            text-align: center;
+        }
+        .footer a {
+            color: #fff;
+            text-decoration: none;
+            margin: 0 8px;
+        }
+        .footer a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <div class="logo">${SERVICE_NAME}</div>
+    <div class="tagline">${SERVICE_TAGLINE}</div>
+    <a href="${CABINET_URL}" class="btn btn-primary">Войти в кабинет →</a>
+
+    <div class="footer">
+        <a href="${CABINET_URL}/legal/privacy" target="_blank">Политика обработки ПДн</a>
+        <a href="${CABINET_URL}/legal/terms" target="_blank">Условия использования</a>
+        <a href="mailto:support@adocs.ru">Поддержка</a>
+    </div>
+</body>
+</html>
