@@ -49,7 +49,7 @@ go run cmd/server/main.go
 ### 4. Testing
 
 ```bash
-# Run all tests
+# Run all tests (SQL tests skip automatically if DB is unavailable)
 go test ./...
 
 # Run with coverage
@@ -57,6 +57,11 @@ go test -cover ./...
 
 # Run specific test
 go test -run TestCreatePayment ./services/billing/internal/service/...
+
+# Run SQL repository tests (requires PostgreSQL)
+export TEST_DATABASE_URL=postgres://api_scan:api_scan_secret@localhost:5432/api_scan
+export TEST_BILLING_DATABASE_URL=postgres://billing:billing_secret@localhost:5433/billing_db
+go test ./services/...
 ```
 
 ### 5. Updating Documentation

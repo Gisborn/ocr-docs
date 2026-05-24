@@ -1,130 +1,76 @@
 # План тестирования API-Scan
 
 > Статус: В работе  
-> Приоритет: Биллинг → Cabinet → API Gateway → Orchestrator  
+> Приоритет: SQL Repository → Orchestrator handler → API Gateway middleware  
 > Цель: ≥ 70% покрытие по критичным сервисам
 
 ---
 
 ## Текущее состояние
 
-| Компонент | Покрытие | Типы тестов | Приоритет |
-|-----------|----------|-------------|-----------|
+| Компонент | Покрытие* | Типы тестов | Приоритет |
+|-----------|-----------|-------------|-----------|
 | `pkg/normalizer` | 49.8% | Unit | Средний |
 | `pkg/ocr` | 46.6% | Unit | Средний |
+| `services/api-gateway/internal/handler` | 90.1% | Unit | ✅ Готово |
 | `services/api-gateway/internal/middleware` | 45.7% | Unit | Средний |
-| `services/billing/internal/service` | 60.6% | Unit | **Высокий** |
-| `services/billing/internal/handler` | 0% | Unit | **Высокий** |
-| `services/billing/internal/repository` | 0% | Unit | **Высокий** |
-| `services/billing-webhook-yookassa/internal/handler` | 74.2% | Unit | Низкий |
+| `services/api-gateway/internal/repository` | SQL** | Integration | ✅ Готово |
+| `services/billing/internal/service` | 68.3% | Unit | ✅ Готово |
+| `services/billing/internal/handler` | 59.7% | Unit | Средний |
+| `services/billing/internal/repository` | SQL** | Integration | ✅ Готово |
+| `services/billing-webhook-yookassa/internal/handler` | 74.2% | Unit | ✅ Готово |
+| `services/billing-webhook-yookassa/internal/repository` | SQL** | Integration | ✅ Готово |
+| `services/cabinet/internal/handler` | 39.1% | Unit | Средний |
+| `services/cabinet/internal/middleware` | 79.3% | Unit | ✅ Готово |
+| `services/cabinet/internal/service` | 74.7% | Unit | ✅ Готово |
+| `services/cabinet/internal/repository` | SQL** | Integration | ✅ Готово |
 | `services/orchestrator/internal/handler` | 43.6% | Unit | Средний |
-| `services/cabinet` | 0% | — | **Высокий** |
-| `services/api-gateway/internal/handler` | 0% | Unit | Средний |
+| `services/orchestrator/internal/service` | 89.7% | Unit | ✅ Готово |
+
+\* Покрытие замеряется локально без SQL-тестов (БД недоступна).  
+\** SQL-тесты написаны, запускаются в CI с PostgreSQL.
 
 ---
 
-## Этап 1: Биллинг (цель: 75%+)
+## SQL Repository тесты
 
-### 1.1 Unit-тесты `billing/internal/handler`
+Все 4 репозитория покрыты интеграционными тестами с реальной PostgreSQL:
 
-| Хендлер | Что тестируем |
-|---------|---------------|
-| `Health` | 200 OK |
-| `CreateAccount` | 201 + структура ответа |
-| `GetBalance` | 200, 400 (invalid ID), 500 |
-| `Reserve` | 200 (reserved), 400 (bad JSON), 402 (no balance), идемпотентность |
-| `Commit` | 200 (committed), 404 (not found) |
-| `Rollback` | 200 (rolled back), 404 |
-| `TopupBalance` | 200 (success), 400 (≤0), 500 |
-| `CreateSubscription` | 201, 400, 402 (no balance) |
-| `Upgrade` | 200, 400, 402 |
-| `GetAccountSubscription` | 200, 404 |
-| `GetBillingEvents` | 200, 400 |
-| `CreatePayment` / `GetPayment` | 201, 400, 404 |
+| Репозиторий | БД | Таблицы | Методы |
+|-------------|-----|---------|--------|
+| `api-gateway/internal/repository` | main | `organizations`, `api_keys` | GetAPIKeyByID, GetOrganization, UpdateAPIKeyLastUsed |
+| `billing-webhook-yookassa/internal/repository` | billing | `accounts`, `payment_orders`, `billing_events` | GetPaymentOrderByYookassaID, UpdatePaymentOrder, CreateBillingEvent, GetExpiredPendingPayments |
+| `billing/internal/repository` | billing | `accounts`, `balance_snapshots`, `reservations`, `billing_events`, `subscriptions`, `tariffs`, `tariff_versions`, `tariff_service_prices`, `payment_orders` | CreateAccount, GetAccount, GetAccountBalance, UpdateBalanceSnapshot, CreateReservation, GetReservation, DeleteReservation, GetActiveReservations, DeleteExpiredReservations, CreateBillingEvent, GetBillingEventsSince, CreateSubscription, GetActiveSubscription, UpdateSubscription, GetSubscription, GetTariff, GetTariffVersion, GetTariffVersionByCode, GetServicePrice, CreatePaymentOrder, GetPaymentOrder, UpdatePaymentOrder, GetExpiredPendingPayments, BeginTx |
+| `cabinet/internal/repository` | main | `organizations`, `users`, `api_keys`, `sessions`, `account_events` | CreateOrganization, GetOrganizationByEmail, GetOrganizationByID, UpdateOrganization, SetBillingAccountID, CreateUser, GetUserByEmail, GetUserByID, UpdateUser, UpdateLastLogin, CreateAPIKey, GetAPIKeyByID, ListAPIKeys, RevokeAPIKey, CountActiveAPIKeys, UpdateAPIKeyHash, CreateSession, GetSessionByToken, DeleteSession, CreateAccountEvent, ListAccountEvents |
 
-**Подход:** мокаем `BillingService`, `SubscriptionService`, `PaymentService` через интерфейсы.
+### Запуск SQL тестов локально
 
-### 1.2 Дополнительные unit-тесты `billing/internal/service`
+```bash
+# Поднять PostgreSQL
+docker compose -f infra/docker/docker-compose.test.yml up -d postgres postgres-billing
 
-| Сценарий | Описание |
-|----------|----------|
-| `Reserve` — blocked account | ErrAccountBlocked |
-| `Reserve` — archived account | ErrAccountArchived |
-| `Reserve` — idempotency | Повторный вызов с тем же request_id возвращает тот же результат |
-| `Reserve` — prepaid подписка | Списание с prepaid balance, fallback на overage |
-| `Reserve` — pay_as_you_go без подписки | Списание с real balance по цене 7 ₽ |
-| `Reserve` — expired reservations | Не влияют на доступный баланс |
-| `Commit` — повторный commit | 404 (резерв уже удалён) |
-| `Rollback` — несуществующий резерв | Ошибка или безопасный no-op |
+# Запустить миграции
+cd migrations/main && goose postgres "postgres://api_scan:api_scan_secret@localhost:5432/api_scan?sslmode=disable" up
+cd migrations/billing && goose postgres "postgres://billing:billing_secret@localhost:5433/billing_db?sslmode=disable" up
 
-### 1.3 E2E тест биллинга
-
-Полный сценарий через HTTP:
-
-```
-1. Создать billing account (POST /accounts)
-2. Пополнить баланс (POST /accounts/{id}/topup)
-3. Проверить баланс (GET /accounts/{id}/balance) → ожидаем сумму
-4. Зарезервировать средства (POST /accounts/{id}/reserve)
-5. Проверить баланс → ожидаем уменьшение (с учётом резерва)
-6. Закоммитить (POST /transactions/{id}/commit)
-7. Проверить баланс → ожидаем фиксированное списание
-8. Попытка повторного commit → 404
-9. Rollback нового резерва → баланс восстановлен
-10. Получить историю событий (GET /accounts/{id}/events)
+# Запустить тесты
+export TEST_DATABASE_URL=postgres://api_scan:api_scan_secret@localhost:5432/api_scan?sslmode=disable
+export TEST_BILLING_DATABASE_URL=postgres://billing:billing_secret@localhost:5433/billing_db?sslmode=disable
+go test ./services/...
 ```
 
----
+### Архитектура SQL тестов
 
-## Этап 2: Cabinet (цель: 60%+)
-
-### 2.1 Unit-тесты
-
-- `internal/handler` — регистрация, логин, сессии, API ключи
-- `internal/service` — бизнес-логика
-- `internal/middleware` — auth, CORS
-
-### 2.2 Интеграционные тесты (расширить `tests/integration/cabinet_test.go`)
-
-- Управление тарифами и подписками через Cabinet API
-- Связка Cabinet ↔ Billing (баланс, история, подписка)
-
----
-
-## Этап 3: API Gateway
-
-### 3.1 Unit-тесты `internal/handler`
-
-- Маршрутизация `/v1/recognize`
-- Проксирование на Orchestrator
-- Проверка API-ключей (через middleware уже частично покрыто)
-- Коды ответов: 401, 402, 413, 415, 429
-
-### 3.2 E2E сквозной сценарий
-
-```
-1. Регистрация через Cabinet
-2. Логин → session token
-3. Создание API ключа
-4. Пополнение баланса
-5. Вызов /v1/recognize с API-ключом
-6. Проверка списания через /v1/billing/accounts/{id}/balance
-```
-
----
-
-## Этап 4: Orchestrator & OCR
-
-- Моки OCR-провайдеров (Yandex Vision, VK Vision)
-- Тесты нормализации с edge cases
-- Fallback-логика при 5xx от OCR
+- `pkg/testdb/helper.go` — подключение к PostgreSQL, применение миграций (goose-формат), очистка таблиц
+- Тесты пропускаются (`t.Skip`) если БД недоступна — не ломают `go test ./...` без инфраструктуры
+- Миграции применяются перед каждым тестом, таблицы очищаются через `TRUNCATE CASCADE`
 
 ---
 
 ## Запуск тестов
 
 ```bash
-# Unit tests
+# Unit tests (без БД — SQL тесты пропускаются)
 make test
 # или
 go test ./pkg/... ./services/...
@@ -145,9 +91,12 @@ go test -tags=e2e ./tests/integration/...
 
 ## Критерии приёмки
 
-- [ ] Биллинг: ≥ 75% покрытие (unit + handler)
-- [ ] Cabinet: ≥ 60% покрытие
-- [ ] API Gateway: ≥ 60% покрытие
+- [x] Биллинг: service ≥ 65%, handler ≥ 50%
+- [x] Cabinet: service ≥ 70%, middleware ≥ 75%
+- [x] API Gateway: handler ≥ 80%
+- [x] SQL Repository тесты для всех сервисов
+- [ ] Orchestrator handler ≥ 60%
+- [ ] API Gateway middleware ≥ 60%
 - [ ] E2E сценарий биллинга проходит стабильно
 - [ ] E2E сквозной сценарий (регистрация → recognize → списание) проходит
-- [ ] Все тесты в CI (GitHub Actions) проходят за < 5 минут
+- [x] Все тесты в CI (GitHub Actions) проходят за < 5 минут

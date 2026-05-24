@@ -49,9 +49,9 @@ func (r *PostgresRepository) GetAPIKeyByID(ctx context.Context, id int64) (*mode
 func (r *PostgresRepository) GetOrganization(ctx context.Context, id int64) (*models.Organization, error) {
 	org := &models.Organization{}
 	err := r.pool.QueryRow(ctx,
-		`SELECT id, name, status, created_at, updated_at FROM organizations WHERE id = $1`,
+		`SELECT id, name, status, billing_account_id, created_at, updated_at FROM organizations WHERE id = $1`,
 		id,
-	).Scan(&org.ID, &org.Name, &org.Status, &org.CreatedAt, &org.UpdatedAt)
+	).Scan(&org.ID, &org.Name, &org.Status, &org.BillingAccountID, &org.CreatedAt, &org.UpdatedAt)
 
 	if err != nil {
 		if err == pgx.ErrNoRows {

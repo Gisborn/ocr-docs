@@ -29,6 +29,8 @@ Balance = Snapshot Balance + Σ Events Since Snapshot - Active Reservations
 |-------|------|----------|
 | POST | `/accounts` | Создать счёт |
 | GET | `/accounts/{id}/balance` | Получить баланс |
+| POST | `/accounts/{id}/topup` | Пополнить баланс (internal) |
+| GET | `/accounts/{id}/events` | История биллинг-событий |
 
 ### Transactions (Two-Phase Commit)
 
@@ -69,6 +71,7 @@ Balance = Snapshot Balance + Σ Events Since Snapshot - Active Reservations
 |-------|------|----------|
 | POST | `/accounts/{id}/payments` | Создать платёж |
 | GET | `/payments/{id}` | Статус платежа |
+| GET | `/accounts/{id}/payments` | Список платежей |
 
 ## База данных
 

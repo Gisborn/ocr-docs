@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>A docs — Документация API</title>
+    <script>
+        (function() {
+            const saved = localStorage.getItem('theme');
+            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            const theme = saved || (prefersDark ? 'dark' : 'light');
+            document.documentElement.setAttribute('data-theme', theme);
+        })();
+    </script>
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --primary-hover: #4338ca;
+            --success: #10b981;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --bg: #f1f5f9;
+            --surface: #ffffff;
+            --text: #1e293b;
+            --text-secondary: #64748b;
+            --border: #e2e8f0;
+            --code-bg: #f8fafc;
+            --code-text: #0f172a;
+            --radius: 12px;
+            --shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+            --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.08), 0 4px 6px -2px rgba(0,0,0,0.03);
+        }
+        [data-theme="dark"] {
+            --primary: #6366f1;
+            --primary-hover: #818cf8;
+            --success: #34d399;
+            --danger: #f87171;
+            --warning: #fbbf24;
+            --bg: #0f172a;
+            --surface: #1e293b;
+            --text: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --border: #334155;
+            --code-bg: #0f172a;
+            --code-text: #e2e8f0;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+        }
+        .container { max-width: 960px; margin: 0 auto; padding: 40px 24px; }
+        .header {
+            display: flex; align-items: center; justify-content: space-between;
+            margin-bottom: 40px; padding-bottom: 24px;
+            border-bottom: 1px solid var(--border);
+        }
+        .header h1 { font-size: 28px; font-weight: 700; }
+        .header p { color: var(--text-secondary); margin-top: 4px; }
+        .back-link {
+            color: var(--primary); text-decoration: none; font-weight: 500;
+            display: inline-flex; align-items: center; gap: 6px;
+        }
+        .back-link:hover { text-decoration: underline; }
+        .section { margin-bottom: 48px; }
+        .section h2 {
+            font-size: 20px; font-weight: 600; margin-bottom: 16px;
+            display: flex; align-items: center; gap: 10px;
+        }
+        .section h3 {
+            font-size: 16px; font-weight: 600; margin: 24px 0 12px;
+            color: var(--primary);
+        }
+        .badge {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 4px 12px; border-radius: 20px; font-size: 12px;
+            font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px;
+        }
+        .badge-get { background: #dbeafe; color: #1e40af; }
+        .badge-post { background: #dcfce7; color: #166534; }
+        [data-theme="dark"] .badge-get { background: #1e3a5f; color: #93c5fd; }
+        [data-theme="dark"] .badge-post { background: #14532d; color: #86efac; }
+
+        .endpoint {
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: var(--radius); padding: 20px; margin-bottom: 16px;
+            box-shadow: var(--shadow);
+        }
+        .endpoint-header {
+            display: flex; align-items: center; gap: 12px; margin-bottom: 12px;
+            flex-wrap: wrap;
+        }
+        .endpoint-path {
+            font-family: 'SF Mono', Monaco, monospace; font-size: 14px;
+            background: var(--code-bg); padding: 4px 10px; border-radius: 6px;
+            color: var(--code-text);
+        }
+        .endpoint-desc { color: var(--text-secondary); font-size: 14px; }
+
+        pre {
+            background: var(--code-bg); border: 1px solid var(--border);
+            border-radius: 8px; padding: 16px; overflow-x: auto;
+            font-family: 'SF Mono', Monaco, monospace; font-size: 13px;
+            line-height: 1.5; color: var(--code-text);
+        }
+        code {
+            font-family: 'SF Mono', Monaco, monospace; font-size: 13px;
+            background: var(--code-bg); padding: 2px 6px; border-radius: 4px;
+            color: var(--code-text);
+        }
+
+        .params-table {
+            width: 100%; border-collapse: collapse; margin-top: 12px;
+            font-size: 14px;
+        }
+        .params-table th, .params-table td {
+            text-align: left; padding: 10px 12px;
+            border-bottom: 1px solid var(--border);
+        }
+        .params-table th {
+            color: var(--text-secondary); font-weight: 500; font-size: 12px;
+            text-transform: uppercase; letter-spacing: 0.4px;
+        }
+        .params-table td code { font-size: 12px; }
+
+        .response-codes {
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 12px; margin-top: 16px;
+        }
+        .code-card {
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: 8px; padding: 12px;
+        }
+        .code-card .status { font-weight: 700; font-size: 14px; }
+        .code-card .status-200 { color: var(--success); }
+        .code-card .status-401 { color: var(--danger); }
+        .code-card .status-402 { color: var(--warning); }
+        .code-card .status-413 { color: var(--warning); }
+        .code-card .status-429 { color: var(--warning); }
+        .code-card .desc { color: var(--text-secondary); font-size: 13px; margin-top: 2px; }
+
+        .note {
+            background: #eff6ff; border-left: 4px solid var(--primary);
+            padding: 16px; border-radius: 0 8px 8px 0; margin: 16px 0;
+            font-size: 14px;
+        }
+        [data-theme="dark"] .note { background: #1e293b; }
+        .note strong { color: var(--primary); }
+
+        .theme-toggle {
+            background: none; border: 1px solid var(--border); border-radius: 8px;
+            padding: 8px 14px; cursor: pointer; color: var(--text);
+            font-size: 14px; display: inline-flex; align-items: center; gap: 6px;
+        }
+        .theme-toggle:hover { border-color: var(--primary); }
+
+        @media (max-width: 640px) {
+            .container { padding: 24px 16px; }
+            .header { flex-direction: column; align-items: flex-start; gap: 12px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div>
+                <h1>📘 Документация API</h1>
+                <p>Публичное API для распознавания паспортов РФ</p>
+            </div>
+            <div style="display:flex;gap:12px;align-items:center;">
+                <a href="/" class="back-link">← Вернуться в кабинет</a>
+                <button class="theme-toggle" onclick="toggleTheme()">🌓 Тема</button>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>🔑 Аутентификация</h2>
+            <p>Все запросы к API требуют заголовка <code>X-Api-Key</code>. Ключ создаётся в <a href="/" class="back-link">личном кабинете</a> и показывается только один раз.</p>
+            <div class="note">
+                <strong>Формат ключа:</strong> <code>base64(key_id:secret)</code><br>
+                Пример: <code>MToxMjM0NTY3ODkwYWJjZGVm</code>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>📝 Распознавание паспорта</h2>
+            <div class="endpoint">
+                <div class="endpoint-header">
+                    <span class="badge badge-post">POST</span>
+                    <code class="endpoint-path">/v1/recognize</code>
+                </div>
+                <p class="endpoint-desc">Отправляет изображение паспорта на OCR-распознавание. Списание средств происходит автоматически (reserve → commit).</p>
+
+                <h3>Заголовки</h3>
+                <table class="params-table">
+                    <tr><th>Заголовок</th><th>Обязательный</th><th>Описание</th></tr>
+                    <tr><td><code>X-Api-Key</code></td><td>Да</td><td>Ваш API-ключ</td></tr>
+                    <tr><td><code>Idempotency-Key</code></td><td>Нет</td><td>Уникальный ключ запроса (UUID). При повторной отправке в течение 24ч вернётся тот же результат без повторного списания.</td></tr>
+                    <tr><td><code>Content-Type</code></td><td>Да</td><td><code>multipart/form-data</code></td></tr>
+                </table>
+
+                <h3>Тело запроса</h3>
+                <pre>Content-Type: multipart/form-data
+
+file: &lt;binary image data&gt;  (JPEG, PNG, WebP, макс. 10 МБ)</pre>
+
+                <h3>Пример запроса (cURL)</h3>
+                <pre>curl -X POST https://api.adocs.ru/v1/recognize \
+  -H "X-Api-Key: ВАШ_API_КЛЮЧ" \
+  -H "Idempotency-Key: $(uuidgen)" \
+  -F "file=@passport.jpg"</pre>
+
+                <h3>Успешный ответ (200 OK)</h3>
+                <pre>{
+  "request_id": "req_1751234567890123456",
+  "last_name": "Иванов",
+  "first_name": "Иван",
+  "middle_name": "Иванович",
+  "birth_date": "15.03.1990",
+  "series": "4515",
+  "number": "123456",
+  "issue_date": "20.05.2015",
+  "issued_by": "ОТДЕЛОМ УФМС РОССИИ ПО Г. МОСКВЕ ПО РАЙОНУ ...",
+  "division_code": "770-064",
+  "registration_address": null
+}</pre>
+
+                <h3>Описание полей ответа</h3>
+                <table class="params-table">
+                    <tr><th>Поле</th><th>Тип</th><th>Описание</th></tr>
+                    <tr><td><code>request_id</code></td><td>string</td><td>Уникальный ID запроса</td></tr>
+                    <tr><td><code>last_name</code></td><td>string</td><td>Фамилия</td></tr>
+                    <tr><td><code>first_name</code></td><td>string</td><td>Имя</td></tr>
+                    <tr><td><code>middle_name</code></td><td>string</td><td>Отчество</td></tr>
+                    <tr><td><code>birth_date</code></td><td>string</td><td>Дата рождения (ДД.ММ.ГГГГ)</td></tr>
+                    <tr><td><code>series</code></td><td>string</td><td>Серия паспорта (4 цифры)</td></tr>
+                    <tr><td><code>number</code></td><td>string</td><td>Номер паспорта (6 цифр)</td></tr>
+                    <tr><td><code>issue_date</code></td><td>string</td><td>Дата выдачи (ДД.ММ.ГГГГ)</td></tr>
+                    <tr><td><code>issued_by</code></td><td>string</td><td>Кем выдан</td></tr>
+                    <tr><td><code>division_code</code></td><td>string</td><td>Код подразделения (XXX-XXX)</td></tr>
+                    <tr><td><code>registration_address</code></td><td>string|null</td><td>Адрес регистрации (если распознан)</td></tr>
+                </table>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>💰 Баланс и подписка</h2>
+            <p>Эти endpoints работают через псевдоним <code>/accounts/me/</code> — API Gateway автоматически подставляет ваш <code>billing_account_id</code>.</p>
+
+            <div class="endpoint">
+                <div class="endpoint-header">
+                    <span class="badge badge-get">GET</span>
+                    <code class="endpoint-path">/v1/billing/accounts/me/balance</code>
+                </div>
+                <p class="endpoint-desc">Возвращает текущий баланс (реальный + предоплаченный).</p>
+
+                <h3>Пример запроса</h3>
+                <pre>curl -X GET https://api.adocs.ru/v1/billing/accounts/me/balance \
+  -H "X-Api-Key: ВАШ_API_КЛЮЧ"</pre>
+
+                <h3>Ответ</h3>
+                <pre>{
+  "account_id": 42,
+  "real_balance_rub": 1500.00,
+  "prepaid_balance_rub": 6000.00
+}</pre>
+            </div>
+
+            <div class="endpoint">
+                <div class="endpoint-header">
+                    <span class="badge badge-get">GET</span>
+                    <code class="endpoint-path">/v1/billing/accounts/me/subscriptions</code>
+                </div>
+                <p class="endpoint-desc">Возвращает активную подписку или 404, если подписки нет.</p>
+
+                <h3>Пример запроса</h3>
+                <pre>curl -X GET https://api.adocs.ru/v1/billing/accounts/me/subscriptions \
+  -H "X-Api-Key: ВАШ_API_КЛЮЧ"</pre>
+
+                <h3>Ответ (200)</h3>
+                <pre>{
+  "subscription_id": 7,
+  "account_id": 42,
+  "tariff_code": "pro",
+  "tariff_name": "Pro",
+  "status": "active",
+  "started_at": "2026-05-01T00:00:00Z",
+  "expires_at": "2026-06-01T00:00:00Z",
+  "auto_renew": false,
+  "initial_prepaid_rub": 6000.00
+}</pre>
+            </div>
+
+            <div class="endpoint">
+                <div class="endpoint-header">
+                    <span class="badge badge-get">GET</span>
+                    <code class="endpoint-path">/v1/billing/accounts/me/events</code>
+                </div>
+                <p class="endpoint-desc">История биллинг-событий (пополнения, списания, подписки).</p>
+
+                <h3>Пример запроса</h3>
+                <pre>curl -X GET https://api.adocs.ru/v1/billing/accounts/me/events \
+  -H "X-Api-Key: ВАШ_API_КЛЮЧ"</pre>
+
+                <h3>Ответ</h3>
+                <pre>[{
+  "id": 101,
+  "account_id": 42,
+  "type": "pay_as_you_go",
+  "real_amount_rub": 7.00,
+  "prepaid_amount_rub": 0,
+  "created_at": "2026-05-20T14:32:00Z"
+}]</pre>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>📋 Коды ответов</h2>
+            <div class="response-codes">
+                <div class="code-card">
+                    <div class="status status-200">200 OK</div>
+                    <div class="desc">Успешное выполнение</div>
+                </div>
+                <div class="code-card">
+                    <div class="status status-401">401 Unauthorized</div>
+                    <div class="desc">Отсутствует или невалидный X-Api-Key</div>
+                </div>
+                <div class="code-card">
+                    <div class="status status-402">402 Payment Required</div>
+                    <div class="desc">Недостаточно средств на балансе</div>
+                </div>
+                <div class="code-card">
+                    <div class="status status-413">413 Payload Too Large</div>
+                    <div class="desc">Файл больше 10 МБ</div>
+                </div>
+                <div class="code-card">
+                    <div class="status status-429">429 Too Many Requests</div>
+                    <div class="desc">Превышен лимит 10 RPS на ключ</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>⚡ Quick Start</h2>
+            <ol style="margin-left: 20px; color: var(--text-secondary);">
+                <li style="margin-bottom: 8px;">Зарегистрируйтесь в <a href="/" class="back-link">личном кабинете</a></li>
+                <li style="margin-bottom: 8px;">Создайте API-ключ (раздел «Ключи доступа»)</li>
+                <li style="margin-bottom: 8px;">Пополните баланс через мок-платёж или ЮКассу</li>
+                <li style="margin-bottom: 8px;">Отправьте POST /v1/recognize с изображением паспорта</li>
+                <li>Получите JSON с распознанными полями</li>
+            </ol>
+        </div>
+
+        <div class="section" style="text-align: center; margin-top: 60px; padding-top: 32px; border-top: 1px solid var(--border); color: var(--text-secondary); font-size: 13px;">
+            Base URL: <code>https://api.adocs.ru</code> ·
+            <a href="/swagger/" class="back-link">Swagger UI</a> ·
+            <a href="/" class="back-link">Личный кабинет</a>
+        </div>
+    </div>
+
+    <script>
+        function toggleTheme() {
+            const html = document.documentElement;
+            const current = html.getAttribute('data-theme') || 'light';
+            const next = current === 'light' ? 'dark' : 'light';
+            html.setAttribute('data-theme', next);
+            localStorage.setItem('theme', next);
+        }
+    </script>
+</body>
+</html>

@@ -322,6 +322,8 @@ func TestResolveTarget(t *testing.T) {
 		{"/api/v1/cabinet/profile", "http://cabinet:8080", "/profile"},
 		{"/api/v1/api-keys", "http://cabinet:8080", "/api/v1/api-keys"},
 		{"/api/v1/balance", "http://cabinet:8080", "/api/v1/balance"},
+		{"/accounts/me/", "http://cabinet:8080", "/accounts/me/"},
+		{"/accounts/me/balance", "http://billing:8080", "/accounts/me/balance"},
 		{"/unknown", "", ""},
 	}
 

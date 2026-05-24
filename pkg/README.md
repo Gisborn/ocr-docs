@@ -51,6 +51,27 @@ type Cache interface {
 - `Redis` — Yandex Memory Store (Redis)
 - `NoopCache` — no-op реализация (fallback при недоступности Redis)
 
+### pkg/normalizer
+
+Нормализация результатов OCR (ФИО, даты, серия/номер паспорта, код подразделения).
+
+### pkg/testdb
+
+Хелперы для SQL-тестов с PostgreSQL:
+- Подключение к БД через `TEST_DATABASE_URL`
+- Применение goose-миграций
+- Очистка таблиц (`TRUNCATE CASCADE`)
+- Автоматический `t.Skip()` если БД недоступна
+
+```go
+func TestRepo(t *testing.T) {
+    pool := testdb.MustPool(t, testdb.DefaultMainURL())
+    testdb.ApplyMigrations(t, pool, "../../../../migrations/main")
+    testdb.Cleanup(t, pool, "organizations", "users")
+    // ...
+}
+```
+
 ### pkg/queue
 
 Интерфейс очереди (для v2 — асинхронная модель).

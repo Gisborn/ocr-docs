@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -9,12 +10,14 @@ import (
 	"time"
 
 	"scan.passport.local/api/services/api-gateway/internal/middleware"
+	"scan.passport.local/api/services/api-gateway/internal/repository"
 )
 
 // Handler HTTP handler для API Gateway
 type Handler struct {
 	routes map[string]*url.URL
 	client *http.Client
+	repo   repository.Repository
 }
 
 // NewHandler создает новый handler
@@ -51,6 +54,11 @@ func NewHandler(orchestratorURL, billingURL, cabinetURL string) (*Handler, error
 			Timeout: 30 * time.Second,
 		},
 	}, nil
+}
+
+// SetRepository устанавливает репозиторий для resolveTarget с billing_account_id
+func (h *Handler) SetRepository(repo repository.Repository) {
+	h.repo = repo
 }
 
 // Health godoc
@@ -90,8 +98,20 @@ func (h *Handler) Health(w http.ResponseWriter, r *http.Request) {
 // @Router /v1/billing/transactions/{id}/commit [post]
 // @Router /v1/billing/transactions/{id}/rollback [post]
 func (h *Handler) ProxyHandler(w http.ResponseWriter, r *http.Request) {
+	path := r.URL.Path
+
+	// Resolve /accounts/me/ → /accounts/{billing_account_id}/
+	if strings.Contains(path, "/accounts/me/") {
+		resolved, err := h.resolveMePath(r.Context(), path)
+		if err != nil {
+			http.Error(w, fmt.Sprintf(`{"error":"%s","code":"NOT_FOUND"}`, err.Error()), http.StatusNotFound)
+			return
+		}
+		path = resolved
+	}
+
 	// Определяем целевой сервис
-	target, path := h.resolveTarget(r.URL.Path)
+	target, targetPath := h.resolveTarget(path)
 	if target == nil {
 		http.Error(w, `{"error":"not found","code":"NOT_FOUND"}`, http.StatusNotFound)
 		return
@@ -99,7 +119,7 @@ func (h *Handler) ProxyHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Создаем новый URL
 	targetURL := *target
-	targetURL.Path = path
+	targetURL.Path = targetPath
 	targetURL.RawQuery = r.URL.RawQuery
 
 	// Создаем новый запрос
@@ -158,6 +178,51 @@ func (h *Handler) ProxyHandler(w http.ResponseWriter, r *http.Request) {
 	io.Copy(w, resp.Body)
 }
 
+// resolveMePath заменяет /accounts/me/ на /accounts/{billing_account_id}/
+func (h *Handler) resolveMePath(ctx context.Context, path string) (string, error) {
+	if h.repo == nil {
+		return "", fmt.Errorf("repository not configured")
+	}
+
+	orgID := ctx.Value(middleware.ContextKeyOrganizationID)
+	if orgID == nil {
+		return "", fmt.Errorf("organization not authenticated")
+	}
+
+	id, ok := orgID.(int64)
+	if !ok {
+		// Пробуем конвертировать из string
+		if s, ok := orgID.(string); ok {
+			var err error
+			id, err = parseInt64(s)
+			if err != nil {
+				return "", fmt.Errorf("invalid organization id")
+			}
+		} else {
+			return "", fmt.Errorf("invalid organization id type")
+		}
+	}
+
+	org, err := h.repo.GetOrganization(ctx, id)
+	if err != nil {
+		return "", fmt.Errorf("failed to get organization")
+	}
+	if org == nil {
+		return "", fmt.Errorf("organization not found")
+	}
+	if org.BillingAccountID == nil || *org.BillingAccountID == 0 {
+		return "", fmt.Errorf("billing account not configured")
+	}
+
+	return strings.Replace(path, "/accounts/me/", fmt.Sprintf("/accounts/%d/", *org.BillingAccountID), 1), nil
+}
+
+func parseInt64(s string) (int64, error) {
+	var result int64
+	_, err := fmt.Sscanf(s, "%d", &result)
+	return result, err
+}
+
 // resolveTarget определяет целевой сервис и путь
 func (h *Handler) resolveTarget(path string) (*url.URL, string) {
 	// Маршрутизация по путям
@@ -165,6 +230,12 @@ func (h *Handler) resolveTarget(path string) (*url.URL, string) {
 	// Orchestrator - распознавание
 	case strings.HasPrefix(path, "/v1/recognize"):
 		if u, ok := h.routes["orchestrator"]; ok {
+			return u, path
+		}
+
+	// Cabinet: /accounts/me/ (но не /accounts/me/balance — это billing)
+	case path == "/accounts/me" || path == "/accounts/me/":
+		if u, ok := h.routes["cabinet"]; ok {
 			return u, path
 		}
 

@@ -4,8 +4,10 @@
 
 ```
 tests/
-├── integration/          # Интеграционные тесты (с реальной БД)
-│   └── cabinet_test.go   # Тесты Cabinet + API Gateway
+├── integration/          # E2E интеграционные тесты (с реальными сервисами)
+│   ├── billing_flow_test.go   # Полный флоу: register → login → API key → topup → subscription → reserve → commit → history
+│   └── cabinet_test.go        # Тесты Cabinet + API Gateway
+├── fixtures/             # Тестовые данные (изображения паспортов)
 └── mocks/                # Моки для OCR провайдеров
 ```
 
@@ -16,7 +18,7 @@ tests/
 Тестируют отдельные компоненты с мок-репозиториями.
 
 ```bash
-# Запуск
+# Запуск (SQL тесты пропускаются автоматически, если БД недоступна)
 make test
 
 # Или
@@ -25,13 +27,45 @@ go test ./services/...
 
 **Покрытие:**
 - `services/billing/internal/service` — billing logic
-- `services/api-gateway/internal/middleware` — auth middleware
+- `services/billing/internal/handler` — HTTP handlers
+- `services/api-gateway/internal/handler` — routing, auth
+- `services/api-gateway/internal/middleware` — rate limiting, CORS
+- `services/cabinet/internal/service` — auth, API keys, payments, subscriptions
+- `services/cabinet/internal/handler` — HTTP handlers
+- `services/cabinet/internal/middleware` — session auth
+- `services/orchestrator/internal/service` — OCR orchestration, circuit breaker
 - `services/billing-webhook-yookassa` — webhook handling
-- `services/orchestrator` — OCR processing
 
-### 2. Integration Tests (с реальной БД)
+### 2. SQL Repository Tests (с реальной PostgreSQL)
 
-Тестируют полные сценарии с реальными базами данных.
+Тестируют PostgreSQL-репозитории всех сервисов.
+
+```bash
+# 1. Поднять PostgreSQL
+docker compose -f infra/docker/docker-compose.test.yml up -d postgres postgres-billing
+
+# 2. Применить миграции
+cd migrations/main && goose up
+cd ../billing && goose up
+
+# 3. Запустить SQL тесты
+export TEST_DATABASE_URL=postgres://api_scan:api_scan_secret@localhost:5432/api_scan
+export TEST_BILLING_DATABASE_URL=postgres://billing:billing_secret@localhost:5433/billing_db
+go test ./services/api-gateway/internal/repository/...
+go test ./services/billing/internal/repository/...
+go test ./services/billing-webhook-yookassa/internal/repository/...
+go test ./services/cabinet/internal/repository/...
+```
+
+**Покрытые репозитории:**
+- `services/api-gateway/internal/repository` — API keys, organizations
+- `services/billing-webhook-yookassa/internal/repository` — payment orders, billing events
+- `services/billing/internal/repository` — accounts, balance, reservations, subscriptions, tariffs, payments
+- `services/cabinet/internal/repository` — organizations, users, API keys, sessions, account events
+
+### 3. Integration / E2E Tests (с реальными сервисами)
+
+Тестируют полные сценарии с реальными базами данных и сервисами.
 
 ```bash
 # 1. Запустить все сервисы
@@ -43,6 +77,7 @@ make test-integration
 
 **Сценарии:**
 - Регистрация → Логин → Создание API ключа → Проверка баланса
+- Полный billing flow: topup → subscription → reserve → commit → history
 - Сессии: создание, валидация, выход
 - API ключи: формат, валидация
 
@@ -52,7 +87,7 @@ make test-integration
 - Cabinet Service на порту 8084
 - API Gateway на порту 8080
 
-### 3. Quick Test Script
+### 4. Quick Test Script
 
 Быстрая проверка всех сервисов:
 
@@ -75,15 +110,26 @@ func TestService_Method(t *testing.T) {
     repo := NewMockRepository()
     svc := NewService(repo)
     
-    // Setup mock
-    repo.expectations = ...
-    
     // Test
     result, err := svc.Method(ctx, req)
     
     // Assert
-    assert.NoError(t, err)
-    assert.Equal(t, expected, result)
+    if err != nil {
+        t.Fatalf("unexpected error: %v", err)
+    }
+}
+```
+
+### SQL Repository Test
+
+```go
+func TestPostgresRepository_Method(t *testing.T) {
+    pool := testdb.MustPool(t, testdb.DefaultMainURL())
+    testdb.ApplyMigrations(t, pool, "../../../../migrations/main")
+    testdb.Cleanup(t, pool, "table1", "table2")
+    
+    repo := repository.NewPostgresRepository(pool)
+    // Test CRUD operations against real PostgreSQL
 }
 ```
 
@@ -104,7 +150,8 @@ func TestFlow(t *testing.T) {
 
 ## CI/CD
 
-В pipeline должны запускаться:
-1. Unit tests (быстро, с моками)
-2. Integration tests (требуют Docker)
-3. Lint checks
+В pipeline запускаются:
+1. **Lint** — `golangci-lint`
+2. **Unit tests** — `go test -race` (SQL тесты выполняются, т.к. PostgreSQL поднят в CI)
+3. **Integration tests** — E2E с ephemeral PostgreSQL + Redis в Docker
+4. **Build images** — проверка сборки всех Docker образов

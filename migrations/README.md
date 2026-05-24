@@ -8,11 +8,28 @@
 go install github.com/pressly/goose/v3/cmd/goose@latest
 ```
 
+## Структура
+
+```
+migrations/
+├── main/                   # api_scan — основная БД (организации, пользователи, сессии, API ключи)
+│   ├── 001_initial_schema.sql
+│   ├── 004_sessions_add_billing_account.sql
+│   ├── 005_add_accepted_terms.sql
+│   └── 006_mock_payments.sql
+└── billing/                # billing_db — биллинг (счета, транзакции, подписки, тарифы)
+    ├── 001_initial_schema.sql
+    └── 002_mock_payments.sql
+```
+
 ## Команды
 
 ```bash
-# Применить все миграции
-goose up
+# Применить все миграции main БД
+cd migrations/main && goose up
+
+# Применить все миграции billing БД
+cd migrations/billing && goose up
 
 # Откатить последнюю миграцию
 goose down
@@ -22,15 +39,6 @@ goose status
 
 # Создать новую миграцию
 goose create add_users_table sql
-```
-
-## Структура
-
-```
-migrations/
-├── 001_initial_schema.sql     # Начальная схема
-├── 002_add_indexes.sql        # Индексы
-└── README.md                  # Этот файл
 ```
 
 ## Конвенции
@@ -50,5 +58,9 @@ export GOOSE_DBSTRING="postgres://api_scan:api_scan_secret@localhost:5432/api_sc
 Или использовать `DATABASE_URL`:
 
 ```bash
-goose postgres "$DATABASE_URL" up
+# Main DB
+goose postgres "postgres://api_scan:api_scan_secret@localhost:5432/api_scan" up
+
+# Billing DB
+goose postgres "postgres://billing:billing_secret@localhost:5433/billing_db" up
 ```
