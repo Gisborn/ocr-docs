@@ -1,6 +1,6 @@
 module scan.passport.local/api
 
-go 1.21
+go 1.25.0
 
 require (
 	github.com/jackc/pgx/v5 v5.8.0
