@@ -90,7 +90,7 @@ func TestPostgresRepository_Reservations(t *testing.T) {
 		AccountID:  acc.ID,
 		RequestID:  "req_001",
 		AmountRub:  50.0,
-		ChargeType: "real",
+		ChargeType: "pay_as_you_go",
 		ExpiresAt:  time.Now().Add(time.Hour),
 	}
 	err := repo.CreateReservation(ctx, res)
@@ -147,7 +147,9 @@ func TestPostgresRepository_DeleteExpiredReservations(t *testing.T) {
 	}
 
 	var count int
-	pool.QueryRow(ctx, `SELECT COUNT(*) FROM reservations WHERE request_id = 'expired'`).Scan(&count)
+	if err := pool.QueryRow(ctx, `SELECT COUNT(*) FROM reservations WHERE request_id = 'expired'`).Scan(&count); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 	if count != 0 {
 		t.Fatalf("expected 0 expired reservations, got %d", count)
 	}
@@ -191,11 +193,15 @@ func TestPostgresRepository_Subscriptions(t *testing.T) {
 
 	// Seed tariff
 	var tariffID int16
-	pool.QueryRow(ctx, `INSERT INTO tariffs (code, name) VALUES ('start', 'Start') RETURNING id`).Scan(&tariffID)
+	if err := pool.QueryRow(ctx, `INSERT INTO tariffs (code, name) VALUES ('start', 'Start') RETURNING id`).Scan(&tariffID); err != nil {
+		t.Fatalf("seed tariff failed: %v", err)
+	}
 	var tvID int32
-	pool.QueryRow(ctx,
+	if err := pool.QueryRow(ctx,
 		`INSERT INTO tariff_versions (tariff_id, duration_days, base_price_rub, prepaid_amount_rub)
-		 VALUES ($1, 30, 100.00, 50.00) RETURNING id`, tariffID).Scan(&tvID)
+		 VALUES ($1, 30, 100.00, 50.00) RETURNING id`, tariffID).Scan(&tvID); err != nil {
+		t.Fatalf("seed tariff version failed: %v", err)
+	}
 
 	sub := &models.Subscription{
 		AccountID:         acc.ID,
@@ -254,11 +260,15 @@ func TestPostgresRepository_Tariffs(t *testing.T) {
 	ctx := context.Background()
 
 	var tariffID int16
-	pool.QueryRow(ctx, `INSERT INTO tariffs (code, name, description) VALUES ('pro', 'Pro', 'Pro tariff') RETURNING id`).Scan(&tariffID)
+	if err := pool.QueryRow(ctx, `INSERT INTO tariffs (code, name, description) VALUES ('pro', 'Pro', 'Pro tariff') RETURNING id`).Scan(&tariffID); err != nil {
+		t.Fatalf("seed tariff failed: %v", err)
+	}
 	var tvID int32
-	pool.QueryRow(ctx,
+	if err := pool.QueryRow(ctx,
 		`INSERT INTO tariff_versions (tariff_id, valid_from, duration_days, base_price_rub, prepaid_amount_rub)
-		 VALUES ($1, NOW() - INTERVAL '1 day', 30, 500.00, 200.00) RETURNING id`, tariffID).Scan(&tvID)
+		 VALUES ($1, NOW() - INTERVAL '1 day', 30, 500.00, 200.00) RETURNING id`, tariffID).Scan(&tvID); err != nil {
+		t.Fatalf("seed tariff version failed: %v", err)
+	}
 	pool.Exec(ctx, `INSERT INTO services (id, name) VALUES ('ocr', 'OCR')`)
 	pool.Exec(ctx,
 		`INSERT INTO tariff_service_prices (tariff_version_id, service_id, included_price_rub, overage_price_rub)
