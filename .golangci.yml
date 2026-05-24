@@ -1,0 +1,24 @@
+run:
+  timeout: 5m
+
+issues:
+  exclude-files:
+    - '_test\.go$'
+    - 'mock_.*\.go$'
+
+linters:
+  enable:
+    - errcheck
+    - gosimple
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+
+linters-settings:
+  errcheck:
+    exclude-functions:
+      - '(*encoding/json.Encoder).Encode'
+      - '(*encoding/json.Decoder).Decode'
+      - 'fmt.Fprintf'
+      - 'fmt.Fprint'

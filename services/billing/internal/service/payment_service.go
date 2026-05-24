@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"log"
 	"net/http"
 	"time"
 
@@ -96,7 +97,9 @@ func (s *PaymentService) CreatePayment(ctx context.Context, accountID int64, req
 	if err != nil {
 		// Обновляем статус заказа на failed
 		order.Status = "failed"
-		s.repo.UpdatePaymentOrder(ctx, order)
+		if err := s.repo.UpdatePaymentOrder(ctx, order); err != nil {
+			log.Printf("[CreatePayment] failed to update order status: %v", err)
+		}
 		return nil, fmt.Errorf("failed to create yookassa payment: %w", err)
 	}
 
@@ -134,7 +137,9 @@ func (s *PaymentService) createYooKassaPayment(ctx context.Context, order *model
 	// Заглушка для MVP - имитируем успешное создание
 	yookassaID := fmt.Sprintf("mock_%d_%d", order.ID, time.Now().Unix())
 	order.YookassaPaymentID = &yookassaID
-	s.repo.UpdatePaymentOrder(ctx, order)
+	if err := s.repo.UpdatePaymentOrder(ctx, order); err != nil {
+		log.Printf("[createYooKassaPayment] failed to update order: %v", err)
+	}
 
 	// Возвращаем mock URL для тестирования
 	return fmt.Sprintf("https://yookassa.ru/payments/%s", yookassaID), nil

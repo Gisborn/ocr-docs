@@ -178,7 +178,7 @@ func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 	// Получаем токен
 	token := extractToken(r)
 	if token != "" {
-		h.authService.Logout(r.Context(), token)
+		_ = h.authService.Logout(r.Context(), token)
 	}
 
 	// Удаляем cookie

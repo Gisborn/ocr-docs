@@ -41,7 +41,7 @@ func (h *Handler) Health(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
+	_ = json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
 }
 
 // YookassaWebhook обрабатывает вебхуки от ЮКассы
@@ -104,7 +104,9 @@ func (h *Handler) YookassaWebhook(w http.ResponseWriter, r *http.Request) {
 
 	// 6. Парсим сумму
 	var amount float64
-	fmt.Sscanf(webhook.Object.Amount.Value, "%f", &amount)
+	if _, err := fmt.Sscanf(webhook.Object.Amount.Value, "%f", &amount); err != nil {
+		amount = 0
+	}
 
 	// 7. Обрабатываем через сервис
 	if err := h.processWebhook(r.Context(), webhook.Object.ID, webhook.Event, amount); err != nil {
@@ -114,7 +116,7 @@ func (h *Handler) YookassaWebhook(w http.ResponseWriter, r *http.Request) {
 
 	// 8. Возвращаем 200 OK (требование ЮКассы)
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{"status": "processed"})
+	_ = json.NewEncoder(w).Encode(map[string]string{"status": "processed"})
 }
 
 // processWebhook обрабатывает webhook и обновляет заказ

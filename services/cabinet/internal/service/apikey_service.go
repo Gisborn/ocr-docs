@@ -102,7 +102,7 @@ func (s *APIKeyService) CreateAPIKey(ctx context.Context, orgID int64, userID in
 	log.Printf("[CreateAPIKey] Updated key hash for ID=%d", key.ID)
 
 	// Логируем событие
-	s.repo.CreateAccountEvent(ctx, &models.AccountEvent{
+	_ = s.repo.CreateAccountEvent(ctx, &models.AccountEvent{
 		OrgID:     orgID,
 		EventType: "api_key_created",
 		Payload: map[string]interface{}{
@@ -161,7 +161,7 @@ func (s *APIKeyService) RevokeAPIKey(ctx context.Context, orgID int64, keyID int
 	}
 
 	// Логируем событие
-	s.repo.CreateAccountEvent(ctx, &models.AccountEvent{
+	_ = s.repo.CreateAccountEvent(ctx, &models.AccountEvent{
 		OrgID:     orgID,
 		EventType: "api_key_revoked",
 		Payload: map[string]interface{}{

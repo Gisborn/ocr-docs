@@ -113,7 +113,7 @@ func main() {
 		content = strings.ReplaceAll(content, "{{SERVICE_TAGLINE}}", serviceTagline)
 		content = strings.ReplaceAll(content, "{{SERVICE_DOMAIN}}", serviceDomain)
 		w.Header().Set("Content-Type", "text/markdown; charset=utf-8")
-		w.Write([]byte(content))
+		_, _ = w.Write([]byte(content))
 	}
 
 	mux.HandleFunc("/legal/privacy", func(w http.ResponseWriter, r *http.Request) {

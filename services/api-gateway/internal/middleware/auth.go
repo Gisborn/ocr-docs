@@ -94,7 +94,9 @@ func (m *AuthMiddleware) Handler(next http.Handler) http.Handler {
 		}
 
 		// Обновляем last_used_at (асинхронно)
-		go m.repo.UpdateAPIKeyLastUsed(context.Background(), key.ID)
+		go func() {
+			_ = m.repo.UpdateAPIKeyLastUsed(context.Background(), key.ID)
+		}()
 		
 		log.Printf("[Auth] Authenticated org=%d key=%d path=%s", org.ID, key.ID, r.URL.Path)
 

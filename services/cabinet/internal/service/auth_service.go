@@ -110,7 +110,7 @@ func (s *AuthService) Register(ctx context.Context, req *RegisterRequest) (*Regi
 	}
 
 	// Логируем событие
-	s.repo.CreateAccountEvent(ctx, &models.AccountEvent{
+	_ = s.repo.CreateAccountEvent(ctx, &models.AccountEvent{
 		OrgID:     org.ID,
 		EventType: "organization_registered",
 		Payload: map[string]interface{}{
@@ -196,7 +196,7 @@ func (s *AuthService) Login(ctx context.Context, req *LoginRequest) (*LoginRespo
 	log.Printf("[Login] Password verified for user ID: %d", user.ID)
 
 	// Обновляем время входа
-	s.repo.UpdateLastLogin(ctx, user.ID)
+	_ = s.repo.UpdateLastLogin(ctx, user.ID)
 
 	// Создаем сессию
 	sessionToken, err := generateSessionToken()
@@ -226,7 +226,7 @@ func (s *AuthService) Login(ctx context.Context, req *LoginRequest) (*LoginRespo
 	}
 
 	// Логируем событие
-	s.repo.CreateAccountEvent(ctx, &models.AccountEvent{
+	_ = s.repo.CreateAccountEvent(ctx, &models.AccountEvent{
 		OrgID:     org.ID,
 		EventType: "user_login",
 		Payload:   map[string]interface{}{},
@@ -321,6 +321,8 @@ func generateSessionToken() (string, error) {
 
 func generateID() string {
 	bytes := make([]byte, 16)
-	rand.Read(bytes)
+	if _, err := rand.Read(bytes); err != nil {
+		return ""
+	}
 	return base64.URLEncoding.EncodeToString(bytes)
 }

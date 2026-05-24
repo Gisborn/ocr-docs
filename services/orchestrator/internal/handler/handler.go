@@ -194,7 +194,9 @@ func (h *Handler) readImage(r *http.Request) ([]byte, error) {
 
 	// Multipart form data
 	if len(contentType) > 19 && contentType[:19] == "multipart/form-data" {
-		r.ParseMultipartForm(MaxUploadSize)
+		if err := r.ParseMultipartForm(MaxUploadSize); err != nil {
+			return nil, fmt.Errorf("failed to parse multipart form: %w", err)
+		}
 		file, _, err := r.FormFile("file")
 		if err != nil {
 			return nil, fmt.Errorf("file required")

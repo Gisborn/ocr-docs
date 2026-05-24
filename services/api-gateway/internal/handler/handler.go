@@ -186,7 +186,7 @@ func (h *Handler) ProxyHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(resp.StatusCode)
 
 	// Копируем тело
-	io.Copy(w, resp.Body)
+	_, _ = io.Copy(w, resp.Body)
 }
 
 // resolveMePath заменяет /accounts/me/ на /accounts/{billing_account_id}/

@@ -388,13 +388,6 @@ func (s *SubscriptionService) getTariffByID(ctx context.Context, id int16) (*mod
 	return s.repo.GetTariff(ctx, id)
 }
 
-// calculateInitialPrepaidRub вычисляет остаток prepaid
-func (s *SubscriptionService) calculateInitialPrepaidRub(ctx context.Context, accountID int64, subID int32, initial float64) float64 {
-	// Получаем все события списания по подписке
-	// Упрощенная версия - в реальности нужно фильтровать по subscription_id
-	return initial // TODO: вычесть использованное
-}
-
 // ProcessExpiredSubscriptions обрабатывает истекшие подписки (cron job)
 func (s *SubscriptionService) ProcessExpiredSubscriptions(ctx context.Context) error {
 	// Этот метод должен вызываться cron-джобой
