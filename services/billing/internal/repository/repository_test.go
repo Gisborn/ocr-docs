@@ -260,7 +260,7 @@ func TestPostgresRepository_Tariffs(t *testing.T) {
 	ctx := context.Background()
 
 	var tariffID int16
-	if err := pool.QueryRow(ctx, `INSERT INTO tariffs (code, name, description) VALUES ('pro', 'Pro', 'Pro tariff') RETURNING id`).Scan(&tariffID); err != nil {
+	if err := pool.QueryRow(ctx, `INSERT INTO tariffs (code, name, description) VALUES ('test_pro', 'Test Pro', 'Pro tariff for test') RETURNING id`).Scan(&tariffID); err != nil {
 		t.Fatalf("seed tariff failed: %v", err)
 	}
 	var tvID int32
@@ -279,8 +279,8 @@ func TestPostgresRepository_Tariffs(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if tariff.Code != "pro" {
-		t.Fatalf("expected code pro, got %s", tariff.Code)
+	if tariff.Code != "test_pro" {
+		t.Fatalf("expected code test_pro, got %s", tariff.Code)
 	}
 
 	// GetTariffVersion
@@ -293,7 +293,7 @@ func TestPostgresRepository_Tariffs(t *testing.T) {
 	}
 
 	// GetTariffVersionByCode
-	tv2, err := repo.GetTariffVersionByCode(ctx, "pro")
+	tv2, err := repo.GetTariffVersionByCode(ctx, "test_pro")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
