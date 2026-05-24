@@ -10,7 +10,7 @@ services:
       POSTGRES_PASSWORD: api_scan_secret
       POSTGRES_DB: api_scan
     ports:
-      - "5432:5432"
+      - "15432:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U api_scan -d api_scan"]
       interval: 5s
@@ -24,7 +24,7 @@ services:
       POSTGRES_PASSWORD: billing_secret
       POSTGRES_DB: billing_db
     ports:
-      - "5433:5432"
+      - "15433:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U billing -d billing_db"]
       interval: 5s
@@ -34,7 +34,7 @@ services:
   redis:
     image: redis:7-alpine
     ports:
-      - "6379:6379"
+      - "16379:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s

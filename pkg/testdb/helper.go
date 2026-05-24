@@ -189,7 +189,7 @@ func DefaultMainURL() string {
 	if u := os.Getenv("TEST_DATABASE_URL"); u != "" {
 		return u
 	}
-	return "postgres://api_scan:api_scan_secret@localhost:5432/api_scan"
+	return "postgres://api_scan:api_scan_secret@localhost:15432/api_scan"
 }
 
 // DefaultBillingURL returns the default billing database URL.
@@ -197,5 +197,5 @@ func DefaultBillingURL() string {
 	if u := os.Getenv("TEST_BILLING_DATABASE_URL"); u != "" {
 		return u
 	}
-	return "postgres://billing:billing_secret@localhost:5433/billing_db"
+	return "postgres://billing:billing_secret@localhost:15433/billing_db"
 }
