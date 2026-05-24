@@ -87,8 +87,8 @@ func main() {
 	mux.HandleFunc("/api/v1/auth/register", httpHandler.Register)
 	mux.HandleFunc("/api/v1/auth/login", httpHandler.Login)
 
-	// Public API documentation
-	mux.HandleFunc("/api/v1/docs", func(w http.ResponseWriter, r *http.Request) {
+	// Public documentation page (UI, not API endpoint)
+	mux.HandleFunc("/docs", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			http.Error(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
 			return
