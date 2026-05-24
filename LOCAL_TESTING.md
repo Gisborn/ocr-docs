@@ -437,6 +437,31 @@ curl https://api.adocs.ru/v1/billing/accounts/me/balance \
 
 ---
 
+## SQL-тесты репозиториев
+
+Тесты для PostgreSQL-репозиториев (все 4 сервиса):
+
+```bash
+# 1. Поднять PostgreSQL
+docker compose -f infra/docker/docker-compose.test.yml up -d postgres postgres-billing
+
+# 2. Применить миграции
+cd migrations/main && goose up
+cd ../billing && goose up
+
+# 3. Запустить SQL тесты
+export TEST_DATABASE_URL=postgres://api_scan:api_scan_secret@localhost:5432/api_scan
+export TEST_BILLING_DATABASE_URL=postgres://billing:billing_secret@localhost:5433/billing_db
+go test ./services/api-gateway/internal/repository/...
+go test ./services/billing/internal/repository/...
+go test ./services/billing-webhook-yookassa/internal/repository/...
+go test ./services/cabinet/internal/repository/...
+```
+
+Если PostgreSQL недоступна, тесты автоматически пропускаются (`t.Skip`).
+
+---
+
 ## Следующие шаги
 
 1. ✅ Регистрация и вход работают
@@ -444,6 +469,7 @@ curl https://api.adocs.ru/v1/billing/accounts/me/balance \
 3. ✅ Биллинг (reserve/commit) работает
 4. ✅ Подписки можно создавать
 5. ✅ Демо-деплой завершён (SSL, домены, Docker)
-6. ⏳ Продакшен: настроить реальную ЮКассу
-7. ⏳ Продакшен: настроить email верификацию
-8. ⏳ Продакшен: Yandex Cloud
+6. ✅ SQL-тесты репозиториев написаны
+7. ⏳ Продакшен: настроить реальную ЮКассу
+8. ⏳ Продакшен: настроить email верификацию
+9. ⏳ Продакшен: Yandex Cloud

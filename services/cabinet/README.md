@@ -43,9 +43,16 @@ Single Page Application на vanilla JS:
 | POST | `/api/v1/auth/login` | — | Вход |
 | POST | `/api/v1/auth/logout` | Session | Выход |
 | GET | `/api/v1/auth/verify` | Session | Проверка сессии |
+| POST | `/api/v1/auth/logout` | Session | Выход |
 | GET | `/api/v1/api-keys` | Session | Список ключей |
 | POST | `/api/v1/api-keys` | Session | Создать ключ |
 | DELETE | `/api/v1/api-keys/{id}` | Session | Отозвать ключ |
+| POST | `/api/v1/payments/mock` | Session | Создать мок-платёж |
+| POST | `/api/v1/payments/mock_{id}/confirm` | Session | Подтвердить мок-платёж |
+| GET | `/api/v1/balance` | Session | Баланс (proxy к Billing) |
+| GET | `/api/v1/subscription` | Session | Активная подписка |
+| POST | `/api/v1/subscription` | Session | Создать/изменить подписку |
+| GET | `/api/v1/history` | Session | История операций |
 
 ### Формат API Key
 

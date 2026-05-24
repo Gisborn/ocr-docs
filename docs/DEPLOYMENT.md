@@ -1,27 +1,27 @@
 # Деплой API-Scan на Ubuntu-сервер
 
+> ⚠️ **Частично устарело**: Демо-стенд использует `jwilder/nginx-proxy` + `letsencrypt-nginx-proxy-companion`, а не Traefik. Этот документ описывает теоретическую production-архитектуру. Актуальная конфигурация demo: `infra/docker/docker-compose.demo.yml`.
+
 Полное руководство по настройке автодеплоя из GitHub Actions на Ubuntu-сервер ( production ).
 
 ## Архитектура деплоя
 
 ```
-GitHub (main branch)
+GitHub (demo branch)
        │
-       ▼ push
+       ▼ push / workflow_dispatch
 GitHub Actions
   ├── Build Docker images
-  ├── Push to GHCR (GitHub Container Registry)
   └── SSH deploy to Ubuntu server
             │
             ▼
-      Ubuntu Server (Docker + Traefik)
+      Ubuntu Server (Docker + nginx-proxy)
 ```
 
 **Технологии:**
 - **Docker Compose** — оркестрация контейнеров
-- **Traefik** — reverse proxy + автоматические SSL-сертификаты Let's Encrypt
-- **GHCR** — GitHub Container Registry (бесплатно для публичных репозиториев)
-- **GitHub Actions** — CI/CD pipeline
+- **nginx-proxy** — reverse proxy + автоматические SSL-сертификаты Let's Encrypt
+- **GitHub Actions** — CI/CD pipeline (manual trigger)
 
 ---
 

@@ -87,6 +87,15 @@ func main() {
 	mux.HandleFunc("/api/v1/auth/register", httpHandler.Register)
 	mux.HandleFunc("/api/v1/auth/login", httpHandler.Login)
 
+	// Public documentation page (UI, not API endpoint)
+	mux.HandleFunc("/docs", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
+			return
+		}
+		http.ServeFile(w, r, filepath.Join(pagesDir, "api-docs.html"))
+	})
+
 	// Legal documents (публичные)
 	legalDocsPath := getEnv("LEGAL_DOCS_PATH", "docs/legal")
 	serviceName := getEnv("SERVICE_NAME", "A docs")

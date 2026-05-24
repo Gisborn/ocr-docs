@@ -19,11 +19,12 @@ type APIKey struct {
 
 // Organization представляет организацию-клиента
 type Organization struct {
-	ID        int64     `json:"id" db:"id"`
-	Name      string    `json:"name" db:"name"`
-	Status    string    `json:"status" db:"status"` // active, blocked, archived
-	CreatedAt time.Time `json:"created_at" db:"created_at"`
-	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
+	ID               int64     `json:"id" db:"id"`
+	Name             string    `json:"name" db:"name"`
+	Status           string    `json:"status" db:"status"` // active, blocked, archived
+	BillingAccountID *int64    `json:"billing_account_id,omitempty" db:"billing_account_id"`
+	CreatedAt        time.Time `json:"created_at" db:"created_at"`
+	UpdatedAt        time.Time `json:"updated_at" db:"updated_at"`
 }
 
 // Valid checks if API key is valid and not expired
