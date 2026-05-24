@@ -97,6 +97,10 @@ services:
       PORT: "8080"
       BILLING_API_URL: "http://billing:8080"
       BILLING_SERVICE_TOKEN: "test-token"
+      YANDEX_VISION_API_KEY: "${YANDEX_VISION_API_KEY:-}"
+      YANDEX_FOLDER_ID: "${YANDEX_FOLDER_ID:-}"
+      YANDEX_VISION_USE_V2: "true"
+      YANDEX_VISION_MODEL: "passport"
       OCR_CONFIDENCE_THRESHOLD: "0.80"
     depends_on:
       billing:
