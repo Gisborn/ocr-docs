@@ -3,7 +3,7 @@
 > Проект: Облачный OCR-сервис распознавания паспортов РФ  
 > Статус: MVP (реализован, протестирован)  
 > Язык документации: Русский
-> Последнее обновление: 2026-05-20
+> Последнее обновление: 2026-05-24
 
 ---
 
@@ -369,8 +369,8 @@ file: <image_file>
 
 ## Полезные ссылки
 
-- Архитектура: `./1c-scan-architecture.md`
-- План реализации: `./1c-scan-plan.md`
+- Архитектура: `./api-scan-architecture.md`
+- План реализации: `./api-scan-plan.md`
 - Документация Yandex Cloud: https://cloud.yandex.ru/docs
 - Документация Yandex Vision: https://cloud.yandex.ru/docs/vision
 - Документация ЮКасса: https://yookassa.ru/developers
