@@ -358,10 +358,25 @@ file: <image_file>
 └── tests/                  # Интеграционные и e2e тесты
 ```
 
-### CI/CD (планируемый)
-- Линтер и тесты на каждый Pull Request
-- Автодеплой в `staging` при мерже в `main`
-- Ручное подтверждение для деплоя в `production`
+### CI/CD
+
+**GitHub Actions workflows:**
+- `.github/workflows/ci.yml` — запускается на PR в `main` и `demo`
+  - `lint` — `golangci-lint`
+  - `unit-tests` — unit тесты с моками (`go test -race`)
+  - `integration-tests` — интеграционные тесты с ephemeral PostgreSQL + Redis в Docker
+  - `build-images` — проверка сборки всех Docker образов
+- `.github/workflows/deploy-demo.yml` — деплой на demo сервер (только из `demo`)
+
+**Стратегия тестов:**
+| Тип | Окружение | Когда |
+|-----|-----------|-------|
+| Unit | Моки, без БД | На каждый PR |
+| Integration | Ephemeral PostgreSQL + Redis в CI | На каждый PR |
+| E2E (full flow) | Docker Compose локально | Перед релизом |
+| Staging | Деплой `demo` ветки на Timeweb | Автоматически / вручную |
+
+**Важно:** CI никогда не подключается к продовой или демо БД. Integration тесты используют `services:` в GitHub Actions (чистые контейнеры PostgreSQL и Redis).
 
 ### Тестирование
 - Unit-тесты с моками для OCR-адаптеров
