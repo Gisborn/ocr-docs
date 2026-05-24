@@ -3,7 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>A docs — Личный кабинет</title>
+    <title>Adocs — Личный кабинет</title>
+    <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
+    <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32x32.png">
+    <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script>
@@ -90,6 +93,16 @@
         .sidebar-header {
             padding: 24px 20px;
             border-bottom: 1px solid var(--sidebar-border);
+        }
+        .sidebar-header .brand {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .sidebar-header .brand svg {
+            height: 32px;
+            width: auto;
+            flex-shrink: 0;
         }
         .sidebar-header h1 {
             font-size: 20px;
@@ -648,7 +661,10 @@
 <div id="appPage" class="app" style="display:none">
     <aside class="sidebar">
         <div class="sidebar-header">
-            <h1 id="serviceName">A docs</h1>
+            <div class="brand">
+                <svg viewBox="0 0 200 60" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="agrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#2563eb"/><stop offset="100%" stop-color="#1e40af"/></linearGradient></defs><polygon points="20,55 35,5 55,5 70,55 55,55 52,45 38,45 35,55" fill="url(#agrad)"/><polygon points="40,20 45,35 50,35 45,20" fill="#ffffff"/><rect x="78" y="12" width="6" height="6" rx="1" fill="#2563eb" opacity="0.9"/><rect x="88" y="12" width="6" height="6" rx="1" fill="#3b82f6" opacity="0.8"/><rect x="98" y="12" width="6" height="6" rx="1" fill="#60a5fa" opacity="0.7"/><rect x="108" y="12" width="6" height="6" rx="1" fill="#93c5fd" opacity="0.6"/><rect x="78" y="24" width="6" height="6" rx="1" fill="#1d4ed8" opacity="0.9"/><rect x="88" y="24" width="6" height="6" rx="1" fill="#2563eb" opacity="0.8"/><rect x="98" y="24" width="6" height="6" rx="1" fill="#3b82f6" opacity="0.7"/><rect x="108" y="24" width="6" height="6" rx="1" fill="#60a5fa" opacity="0.6"/><rect x="118" y="24" width="6" height="6" rx="1" fill="#93c5fd" opacity="0.5"/><rect x="78" y="36" width="6" height="6" rx="1" fill="#1e3a8a" opacity="0.9"/><rect x="88" y="36" width="6" height="6" rx="1" fill="#1d4ed8" opacity="0.8"/><rect x="98" y="36" width="6" height="6" rx="1" fill="#2563eb" opacity="0.7"/><rect x="108" y="36" width="6" height="6" rx="1" fill="#3b82f6" opacity="0.6"/><rect x="118" y="36" width="6" height="6" rx="1" fill="#60a5fa" opacity="0.5"/><rect x="128" y="36" width="6" height="6" rx="1" fill="#93c5fd" opacity="0.4"/><rect x="78" y="48" width="6" height="6" rx="1" fill="#172554" opacity="0.9"/><rect x="88" y="48" width="6" height="6" rx="1" fill="#1e3a8a" opacity="0.8"/><rect x="98" y="48" width="6" height="6" rx="1" fill="#1d4ed8" opacity="0.7"/><rect x="108" y="48" width="6" height="6" rx="1" fill="#2563eb" opacity="0.6"/><rect x="118" y="48" width="6" height="6" rx="1" fill="#3b82f6" opacity="0.5"/><rect x="128" y="48" width="6" height="6" rx="1" fill="#60a5fa" opacity="0.4"/><rect x="138" y="48" width="6" height="6" rx="1" fill="#93c5fd" opacity="0.3"/></svg>
+                <h1 id="serviceName">Adocs</h1>
+            </div>
             <p id="serviceTagline">распознавание документов</p>
         </div>
         <nav class="sidebar-nav">
