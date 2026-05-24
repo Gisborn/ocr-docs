@@ -170,6 +170,7 @@ jobs:
         env:
           DATABASE_URL: postgres://api_scan:api_scan_secret@localhost:5432/api_scan?sslmode=disable
           BILLING_DATABASE_URL: postgres://billing:billing_secret@localhost:5433/billing_db?sslmode=disable
+          YANDEX_VISION_API_KEY: ${{ secrets.YANDEX_VISION_API_KEY }}
         run: go test -v -tags=integration ./tests/integration/...
 
   build-images:

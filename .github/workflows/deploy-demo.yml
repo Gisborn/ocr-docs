@@ -130,6 +130,7 @@ jobs:
           CABINET_URL: http://localhost:8084
           API_GATEWAY_URL: http://localhost:8080
           DATABASE_URL: postgres://api_scan:api_scan_secret@localhost:5432/api_scan?sslmode=disable
+          YANDEX_VISION_API_KEY: ${{ secrets.YANDEX_VISION_API_KEY }}
         run: go test -v -timeout=120s ./tests/integration/...
 
       - name: Dump logs on failure
