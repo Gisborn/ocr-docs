@@ -11,9 +11,7 @@ import (
 )
 
 func setupWebhookRepo(t *testing.T) (*PostgresRepository, *pgxpool.Pool) {
-	pool := testdb.MustPool(t, testdb.DefaultBillingURL())
-	testdb.ApplyMigrations(t, pool, "../../../../migrations/billing")
-	testdb.Cleanup(t, pool, "payment_orders", "billing_events", "accounts", "subscriptions", "tariff_service_prices", "tariff_versions", "tariffs", "services")
+	pool := testdb.SetupTestDB(t, testdb.DefaultBillingURL(), "../../../../migrations/billing")
 	return NewPostgresRepository(pool), pool
 }
 

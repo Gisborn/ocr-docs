@@ -10,9 +10,7 @@ import (
 )
 
 func setupAPIGatewayRepo(t *testing.T) (*PostgresRepository, *pgxpool.Pool) {
-	pool := testdb.MustPool(t, testdb.DefaultMainURL())
-	testdb.ApplyMigrations(t, pool, "../../../../migrations/main")
-	testdb.Cleanup(t, pool, "api_keys", "organizations", "users", "sessions", "account_events")
+	pool := testdb.SetupTestDB(t, testdb.DefaultMainURL(), "../../../../migrations/main")
 	return NewPostgresRepository(pool), pool
 }
 

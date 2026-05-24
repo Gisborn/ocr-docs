@@ -6,14 +6,78 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"math/rand"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
+
+// SetupTestDB creates an ephemeral schema, applies migrations, and returns a pool.
+// Cleanup drops the schema automatically via t.Cleanup.
+func SetupTestDB(t *testing.T, databaseURL, migrationsDir string) *pgxpool.Pool {
+	t.Helper()
+
+	schemaName := fmt.Sprintf("test_%d_%d", time.Now().UnixNano(), rand.Int31())
+
+	// Connect to admin schema (public) to create the test schema
+	adminPool, err := pgxpool.New(context.Background(), databaseURL)
+	if err != nil {
+		t.Skipf("Cannot create admin pool: %v", err)
+	}
+	defer adminPool.Close()
+
+	ctx := context.Background()
+	if err := adminPool.Ping(ctx); err != nil {
+		t.Skipf("Database not available: %v", err)
+	}
+
+	_, err = adminPool.Exec(ctx, fmt.Sprintf("CREATE SCHEMA %s", schemaName))
+	if err != nil {
+		t.Fatalf("create schema %s: %v", schemaName, err)
+	}
+
+	// Build a pool that sets search_path on every new connection
+	cfg, err := pgxpool.ParseConfig(databaseURL)
+	if err != nil {
+		t.Fatalf("parse config: %v", err)
+	}
+
+	cfg.AfterConnect = func(ctx context.Context, conn *pgx.Conn) error {
+		_, err := conn.Exec(ctx, fmt.Sprintf("SET search_path TO %s", schemaName))
+		return err
+	}
+
+	pool, err := pgxpool.NewWithConfig(ctx, cfg)
+	if err != nil {
+		t.Fatalf("create pool: %v", err)
+	}
+
+	// Apply migrations inside the ephemeral schema
+	ApplyMigrations(t, pool, migrationsDir)
+
+	// Register cleanup: close pool then drop schema
+	t.Cleanup(func() {
+		pool.Close()
+
+		cleanupCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		tempPool, err := pgxpool.New(cleanupCtx, databaseURL)
+		if err != nil {
+			return
+		}
+		defer tempPool.Close()
+
+		_, _ = tempPool.Exec(cleanupCtx, fmt.Sprintf("DROP SCHEMA IF EXISTS %s CASCADE", schemaName))
+	})
+
+	return pool
+}
 
 // MustPool returns a connection pool or skips the test.
 func MustPool(t *testing.T, databaseURL string) *pgxpool.Pool {

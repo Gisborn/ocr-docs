@@ -11,13 +11,7 @@ import (
 )
 
 func setupBillingRepo(t *testing.T) (*PostgresRepository, *pgxpool.Pool) {
-	pool := testdb.MustPool(t, testdb.DefaultBillingURL())
-	testdb.ApplyMigrations(t, pool, "../../../../migrations/billing")
-	testdb.Cleanup(t, pool,
-		"reservations", "billing_events", "subscriptions", "payment_orders",
-		"tariff_service_prices", "tariff_versions", "tariffs", "services",
-		"balance_snapshots", "accounts",
-	)
+	pool := testdb.SetupTestDB(t, testdb.DefaultBillingURL(), "../../../../migrations/billing")
 	return NewPostgresRepository(pool), pool
 }
 

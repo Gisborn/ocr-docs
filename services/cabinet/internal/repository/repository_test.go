@@ -11,9 +11,7 @@ import (
 )
 
 func setupCabinetRepo(t *testing.T) (*PostgresRepository, *pgxpool.Pool) {
-	pool := testdb.MustPool(t, testdb.DefaultMainURL())
-	testdb.ApplyMigrations(t, pool, "../../../../migrations/main")
-	testdb.Cleanup(t, pool, "account_events", "sessions", "api_keys", "users", "organizations")
+	pool := testdb.SetupTestDB(t, testdb.DefaultMainURL(), "../../../../migrations/main")
 	return NewPostgresRepository(pool), pool
 }
 
