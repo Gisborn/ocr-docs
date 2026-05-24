@@ -100,7 +100,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.22'
+          go-version: '1.24'
 
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v3
@@ -121,7 +121,7 @@ jobs:
           DATABASE_URL: postgres://api_scan:api_scan_secret@localhost:5432/api_scan?sslmode=disable
           BILLING_DATABASE_URL: postgres://billing:billing_secret@localhost:5433/billing_db?sslmode=disable
         run: |
-          go install github.com/pressly/goose/v3/cmd/goose@latest
+          go install github.com/pressly/goose/v3/cmd/goose@v3.24.0
           cd migrations/main && goose postgres "$DATABASE_URL" up
           cd ../../migrations/billing && goose postgres "$BILLING_DATABASE_URL" up
 
