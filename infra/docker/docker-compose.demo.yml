@@ -178,6 +178,7 @@ services:
       ORCHESTRATOR_URL: "http://orchestrator:8080"
       BILLING_URL: "http://billing:8080"
       BILLING_WEBHOOK_URL: "http://billing-webhook-yookassa:8080"
+      BILLING_SERVICE_TOKEN: "${BILLING_SERVICE_TOKEN}"
       CABINET_URL: "http://cabinet:8080"
       VIRTUAL_HOST: "${API_DOMAIN:-api.adocs.ru}"
       LETSENCRYPT_HOST: "${API_DOMAIN:-api.adocs.ru}"

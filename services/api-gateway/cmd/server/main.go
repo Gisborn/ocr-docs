@@ -77,6 +77,7 @@ func main() {
 		log.Fatalf("Failed to create handler: %v", err)
 	}
 	gatewayHandler.SetRepository(repo)
+	gatewayHandler.SetBillingToken(getEnv("BILLING_SERVICE_TOKEN", ""))
 
 	// Добавляем маршрут для webhook'ов
 	webhookHandler, _ := handler.NewHandler("", "", billingWebhookURL)

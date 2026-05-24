@@ -15,9 +15,10 @@ import (
 
 // Handler HTTP handler для API Gateway
 type Handler struct {
-	routes map[string]*url.URL
-	client *http.Client
-	repo   repository.Repository
+	routes       map[string]*url.URL
+	client       *http.Client
+	repo         repository.Repository
+	billingToken string
 }
 
 // NewHandler создает новый handler
@@ -59,6 +60,11 @@ func NewHandler(orchestratorURL, billingURL, cabinetURL string) (*Handler, error
 // SetRepository устанавливает репозиторий для resolveTarget с billing_account_id
 func (h *Handler) SetRepository(repo repository.Repository) {
 	h.repo = repo
+}
+
+// SetBillingToken устанавливает токен для внутренней аутентификации с Billing
+func (h *Handler) SetBillingToken(token string) {
+	h.billingToken = token
 }
 
 // Health godoc
@@ -142,6 +148,11 @@ func (h *Handler) ProxyHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	if keyID := r.Context().Value(middleware.ContextKeyAPIKeyID); keyID != nil {
 		proxyReq.Header.Set("X-API-Key-ID", fmt.Sprintf("%v", keyID))
+	}
+
+	// Передаем service token в Billing для internal аутентификации
+	if h.billingToken != "" && target.Host == h.routes["billing"].Host {
+		proxyReq.Header.Set("X-Service-Token", h.billingToken)
 	}
 
 	// Добавляем X-Forwarded-For
