@@ -52,10 +52,11 @@ func TestBillingFlow(t *testing.T) {
 
 	// ── 1. Register via Cabinet ──
 	t.Run("Register", func(t *testing.T) {
-		body, _ := json.Marshal(map[string]string{
-			"organization_name": "Billing Flow Test Org",
-			"email":             testEmail,
-			"password":          testPassword,
+		body, _ := json.Marshal(map[string]interface{}{
+			"org_name":        "Billing Flow Test Org",
+			"email":           testEmail,
+			"password":        testPassword,
+			"accepted_terms":  true,
 		})
 		resp, err := http.Post(cabinetURL+"/api/v1/auth/register", "application/json", bytes.NewBuffer(body))
 		if err != nil {

@@ -79,10 +79,11 @@ func TestAuthFlow(t *testing.T) {
 		cleanupTestData(ctx)
 
 		// 1. Register
-		registerBody := map[string]string{
-			"organization_name": "Test Integration Org",
-			"email":             testUserEmail,
-			"password":          testPassword,
+		registerBody := map[string]interface{}{
+			"org_name":        "Test Integration Org",
+			"email":           testUserEmail,
+			"password":        testPassword,
+			"accepted_terms":  true,
 		}
 		body, _ := json.Marshal(registerBody)
 
