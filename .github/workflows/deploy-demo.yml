@@ -118,8 +118,8 @@ jobs:
 
       - name: Run database migrations
         env:
-          DATABASE_URL: postgres://api_scan:api_scan_secret@localhost:5432/api_scan?sslmode=disable
-          BILLING_DATABASE_URL: postgres://billing:billing_secret@localhost:5433/billing_db?sslmode=disable
+          DATABASE_URL: postgres://api_scan:api_scan_secret@localhost:15432/api_scan?sslmode=disable
+          BILLING_DATABASE_URL: postgres://billing:billing_secret@localhost:15433/billing_db?sslmode=disable
         run: |
           go install github.com/pressly/goose/v3/cmd/goose@v3.24.0
           cd migrations/main && goose postgres "$DATABASE_URL" up
@@ -129,7 +129,8 @@ jobs:
         env:
           CABINET_URL: http://localhost:8084
           API_GATEWAY_URL: http://localhost:8080
-          DATABASE_URL: postgres://api_scan:api_scan_secret@localhost:5432/api_scan?sslmode=disable
+          DATABASE_URL: postgres://api_scan:api_scan_secret@localhost:15432/api_scan?sslmode=disable
+          BILLING_DATABASE_URL: postgres://billing:billing_secret@localhost:15433/billing_db?sslmode=disable
           YANDEX_VISION_API_KEY: ${{ secrets.YANDEX_VISION_API_KEY }}
         run: go test -v -timeout=120s ./tests/integration/...
 
