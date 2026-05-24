@@ -143,3 +143,28 @@ fmt:
 lint:
 	@echo "Running linter..."
 	@golangci-lint run ./...
+
+# Pre-push checks: everything CI does, locally
+pre-push:
+	@echo "=== Pre-push checks ==="
+	@echo "→ Starting test databases..."
+	@docker compose -f infra/docker/docker-compose.test.yml up -d postgres postgres-billing redis
+	@echo "→ Waiting for databases..."
+	@sleep 5
+	@echo "→ Building..."
+	@go build ./pkg/... ./services/...
+	@echo "→ Running tests..."
+	@go test -race -count=1 ./pkg/... ./services/...
+	@echo "→ Running linter..."
+	@golangci-lint run --timeout=5m ./...
+	@echo "→ Stopping test databases..."
+	@docker compose -f infra/docker/docker-compose.test.yml down
+	@echo "✅ Pre-push checks passed"
+
+# Quick local check (no DB required, skips SQL tests)
+check:
+	@echo "=== Quick check ==="
+	@go build ./pkg/... ./services/...
+	@go test -short -count=1 ./pkg/... ./services/...
+	@golangci-lint run --timeout=5m ./...
+	@echo "✅ Quick check passed"
