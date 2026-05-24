@@ -60,6 +60,27 @@ func SetupTestDB(t *testing.T, databaseURL, migrationsDir string) *pgxpool.Pool 
 	// Apply migrations inside the ephemeral schema
 	ApplyMigrations(t, pool, migrationsDir)
 
+	// Reset SERIAL sequences to max(id)+1 (seed data with explicit IDs doesn't update sequences)
+	_, err = pool.Exec(ctx, fmt.Sprintf(`
+		DO $$
+		DECLARE r RECORD;
+		BEGIN
+			FOR r IN
+				SELECT c.relname AS t, a.attname AS col
+				FROM pg_class c
+				JOIN pg_attribute a ON a.attrelid = c.oid
+				JOIN pg_attrdef d ON d.adrelid = c.oid AND d.adnum = a.attnum
+				JOIN pg_namespace n ON n.oid = c.relnamespace
+				WHERE n.nspname = '%s'
+				  AND pg_get_expr(d.adbin, d.adrelid) LIKE 'nextval%%'
+			LOOP
+				EXECUTE format('SELECT setval(pg_get_serial_sequence(%%L, %%L), COALESCE((SELECT MAX(%%s) FROM %%s), 1), true)', r.t, r.col, r.col, r.t);
+			END LOOP;
+		END $$`, schemaName))
+	if err != nil {
+		t.Logf("reset sequences: %v", err)
+	}
+
 	// Register cleanup: close pool then drop schema
 	t.Cleanup(func() {
 		pool.Close()
