@@ -308,6 +308,36 @@ file: <image_file>
 
 ---
 
+## Workflow веток и CI/CD
+
+### Ветки
+
+| Ветка | Назначение | Триггер деплоя |
+|-------|------------|----------------|
+| `main` | Production-код | Вручную (production workflow) |
+| `demo` | Демо-стенд, активная разработка | Автодеплой при `push` + `workflow_dispatch` |
+
+**Правила:**
+- В `main` коммиты только через Merge Request (Pull Request)
+- `demo` — рабочая ветка для демо-фич и тестирования
+- CI `.github/workflows/deploy-demo.yml` запускается только из `demo`
+
+### Защита ветки `main` (Branch Protection)
+
+Настройки в GitHub → Settings → Branches → Branch protection rules:
+
+1. **Require a pull request before merging**
+   - Require approvals: `1`
+   - Dismiss stale PR approvals when new commits are pushed: ✅
+2. **Require status checks to pass before merging**
+   - `go test` (unit tests)
+   - `golangci-lint`
+3. **Require branches to be up to date before merging**
+4. **Restrict pushes that create files larger than 100 MB**
+5. **Do not allow bypassing the above settings** (включить для админов тоже)
+
+---
+
 ## Конвенции разработки (планируемые)
 
 ### Структура репозитория (предполагаемая)
