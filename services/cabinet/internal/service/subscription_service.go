@@ -46,6 +46,39 @@ type CreateSubscriptionRequest struct {
 	PaymentMethod string `json:"payment_method"`
 }
 
+// GetTariffs получает список тарифов из Billing Service
+func (s *SubscriptionService) GetTariffs(ctx context.Context) ([]map[string]interface{}, error) {
+	if s.billingURL == "" {
+		return nil, fmt.Errorf("billing service not configured")
+	}
+
+	url := fmt.Sprintf("%s/tariffs", s.billingURL)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return nil, err
+	}
+	if s.billingToken != "" {
+		req.Header.Set("Authorization", "Bearer "+s.billingToken)
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("billing service error: %s", string(body))
+	}
+
+	var tariffs []map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&tariffs); err != nil {
+		return nil, err
+	}
+	return tariffs, nil
+}
+
 // GetSubscription получает активную подписку из Billing Service
 func (s *SubscriptionService) GetSubscription(ctx context.Context, accountID int64) (*GetSubscriptionResponse, error) {
 	if s.billingURL == "" {

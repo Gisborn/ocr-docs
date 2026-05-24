@@ -76,6 +76,11 @@ type Tariff struct {
 	PrepaidAmount float64 `json:"prepaid_amount_rub"`
 }
 
+// GetTariffs возвращает список активных тарифов
+func (s *SubscriptionService) GetTariffs(ctx context.Context) ([]*models.TariffWithVersion, error) {
+	return s.repo.GetTariffs(ctx)
+}
+
 // CreateSubscription создает подписку
 func (s *SubscriptionService) CreateSubscription(ctx context.Context, accountID int64, req *CreateSubscriptionRequest) (*CreateSubscriptionResponse, error) {
 	// Получаем тариф

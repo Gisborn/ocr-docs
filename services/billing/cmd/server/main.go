@@ -92,6 +92,9 @@ func main() {
 
 	// Health
 	mux.HandleFunc("/health", httpHandler.Health)
+
+	// Tariffs (public)
+	mux.HandleFunc("/tariffs", httpHandler.GetTariffs)
 	
 	// Accounts
 	mux.HandleFunc("/accounts", func(w http.ResponseWriter, r *http.Request) {

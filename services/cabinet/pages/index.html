@@ -1267,34 +1267,44 @@ async function revokeKey(id) {
 }
 
 // ---------- Tariff & Subscription ----------
-const TARIFFS = [
-    {
-        code: 'free',
-        name: 'Free',
-        price: '0 ₽',
-        period: '/мес',
-        description: 'Для тестирования и малого объёма',
-        features: ['10 распознаваний в месяц', 'Email-поддержка', 'Базовая точность']
-    },
-    {
-        code: 'basic',
-        name: 'Basic',
-        price: '3 ₽',
-        period: '/операция',
-        description: 'Оплата по факту использования',
-        features: ['Безлимитные распознавания', 'Приоритетная обработка', 'Стандартная поддержка']
-    },
-    {
-        code: 'pro',
-        name: 'Pro',
-        price: '10 000 ₽',
-        period: '/мес',
-        description: 'Предоплаченный пакет 5 000 операций',
-        features: ['5 000 операций в пакете', 'Перерасход по Basic-цене', 'Приоритетная поддержка', 'API v2 (async)']
+let tariffs = [];
+
+const TARIFF_FEATURES = {
+    free:  ['10 распознаваний в месяц', 'Email-поддержка', 'Базовая точность'],
+    basic: ['Безлимитные распознавания', 'Приоритетная обработка', 'Стандартная поддержка'],
+    pro:   ['5 000 операций в пакете', 'Перерасход по Basic-цене', 'Приоритетная поддержка', 'API v2 (async)']
+};
+
+async function loadTariffs() {
+    try {
+        const res = await fetch(`${API_BASE}/api/v1/tariffs`, { headers: { 'Authorization': 'Bearer ' + sessionToken } });
+        if (!res.ok) throw new Error('Failed to load tariffs');
+        const data = await res.json();
+        tariffs = data.map(t => {
+            const isPerOp = t.code === 'basic';
+            const price = isPerOp
+                ? (t.base_price_rub > 0 ? t.base_price_rub.toLocaleString('ru-RU') + ' ₽' : '0 ₽')
+                : (t.base_price_rub > 0 ? t.base_price_rub.toLocaleString('ru-RU') + ' ₽' : '0 ₽');
+            const period = isPerOp ? '/операция' : '/мес';
+            return {
+                code: t.code,
+                name: t.name,
+                price: price,
+                period: period,
+                description: t.description || '',
+                features: TARIFF_FEATURES[t.code] || [],
+                base_price_rub: t.base_price_rub,
+                prepaid_amount_rub: t.prepaid_amount_rub
+            };
+        }).sort((a, b) => (a.base_price_rub - b.base_price_rub));
+    } catch (e) {
+        console.error('loadTariffs error:', e);
+        tariffs = [];
     }
-];
+}
 
 async function loadTariff() {
+    await loadTariffs();
     let currentCode = 'basic';
     let sub = null;
     try {
@@ -1310,7 +1320,7 @@ async function loadTariff() {
 function renderTariffSection(currentCode, sub, containerId) {
     const container = document.getElementById(containerId || 'tariffInfo');
     if (!container) return;
-    const currentTariff = TARIFFS.find(t => t.code === currentCode) || TARIFFS[1];
+    const currentTariff = tariffs.find(t => t.code === currentCode) || tariffs[1] || { name: 'Basic' };
 
     if (sub && sub.status === 'active' && currentCode !== 'free' && currentCode !== 'basic') {
         // Active paid subscription view
@@ -1342,7 +1352,8 @@ function renderTariffSection(currentCode, sub, containerId) {
 }
 
 function renderTariffCards(currentCode) {
-    return TARIFFS.map(t => `
+    if (!tariffs.length) return '<p style="color:var(--text-secondary)">Загрузка тарифов...</p>';
+    return tariffs.map(t => `
         <div class="tariff-card ${t.code === currentCode ? 'current' : ''}">
             <div class="tariff-name">${escapeHtml(t.name)}</div>
             <div class="tariff-price">${t.price}<span style="font-size:14px;color:var(--text-secondary);font-weight:500">${t.period}</span></div>

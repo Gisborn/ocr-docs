@@ -178,6 +178,24 @@ func (m *MockRepository) GetTariffVersionByCode(ctx context.Context, code string
 	return nil, fmt.Errorf("tariff not found")
 }
 
+func (m *MockRepository) GetTariffs(ctx context.Context) ([]*models.TariffWithVersion, error) {
+	var result []*models.TariffWithVersion
+	for _, tv := range m.tariffVersions {
+		if t, ok := m.tariffs[tv.TariffID]; ok {
+			result = append(result, &models.TariffWithVersion{
+				ID:               t.ID,
+				Code:             t.Code,
+				Name:             t.Name,
+				Description:      t.Description,
+				BasePriceRub:     tv.BasePriceRub,
+				PrepaidAmountRub: tv.PrepaidAmountRub,
+				DurationDays:     tv.DurationDays,
+			})
+		}
+	}
+	return result, nil
+}
+
 func (m *MockRepository) GetServicePrice(ctx context.Context, tariffVersionID int32, serviceID string) (*models.TariffServicePrice, error) {
 	key := fmt.Sprintf("%d_%s", tariffVersionID, serviceID)
 	return m.prices[key], nil

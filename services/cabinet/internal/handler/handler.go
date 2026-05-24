@@ -430,6 +430,22 @@ func extractPaymentIDFromPath(path string) string {
 }
 
 // GetBalance возвращает баланс организации (через Billing Service)
+func (h *Handler) GetTariffs(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
+		return
+	}
+
+	tariffs, err := h.subService.GetTariffs(r.Context())
+	if err != nil {
+		http.Error(w, `{"error":"failed to get tariffs"}`, http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(tariffs)
+}
+
 func (h *Handler) GetBalance(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)

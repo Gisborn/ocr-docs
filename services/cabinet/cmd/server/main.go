@@ -155,6 +155,8 @@ func main() {
 			httpHandler.ConfirmMockPayment(w, r)
 		case path == "/api/v1/balance":
 			httpHandler.GetBalance(w, r)
+		case path == "/api/v1/tariffs":
+			httpHandler.GetTariffs(w, r)
 		case path == "/api/v1/subscription":
 			if r.Method == http.MethodGet {
 				httpHandler.GetSubscription(w, r)

@@ -47,6 +47,30 @@ func (h *Handler) Health(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
 }
 
+// GetTariffs godoc
+// @Summary Get available tariffs
+// @Description Returns all active tariffs with current pricing
+// @Tags tariffs
+// @Accept json
+// @Produce json
+// @Success 200 {array} models.TariffWithVersion
+// @Router /tariffs [get]
+func (h *Handler) GetTariffs(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	tariffs, err := h.subService.GetTariffs(r.Context())
+	if err != nil {
+		http.Error(w, fmt.Sprintf(`{"error":"%s"}`, err.Error()), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(tariffs)
+}
+
 // CreateAccount godoc
 // @Summary Create new account
 // @Description Create a new billing account

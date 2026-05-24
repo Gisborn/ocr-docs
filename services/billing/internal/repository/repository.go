@@ -36,6 +36,7 @@ type Repository interface {
 	GetSubscription(ctx context.Context, id int32) (*models.Subscription, error)
 	
 	// Tariffs
+	GetTariffs(ctx context.Context) ([]*models.TariffWithVersion, error)
 	GetTariff(ctx context.Context, id int16) (*models.Tariff, error)
 	GetTariffVersion(ctx context.Context, id int32) (*models.TariffVersion, error)
 	GetTariffVersionByCode(ctx context.Context, code string) (*models.TariffVersion, error)
@@ -351,6 +352,32 @@ func (r *PostgresRepository) GetTariffVersionByCode(ctx context.Context, code st
 		return nil, err
 	}
 	return tv, nil
+}
+
+// GetTariffs получает все активные тарифы с текущими версиями
+func (r *PostgresRepository) GetTariffs(ctx context.Context) ([]*models.TariffWithVersion, error) {
+	rows, err := r.query(ctx,
+		`SELECT t.id, t.code, t.name, t.description, tv.base_price_rub, tv.prepaid_amount_rub, tv.duration_days
+		 FROM tariffs t
+		 JOIN tariff_versions tv ON tv.tariff_id = t.id
+		 WHERE t.is_active = TRUE
+		   AND tv.valid_from <= NOW()
+		   AND (tv.valid_until IS NULL OR tv.valid_until > NOW())
+		 ORDER BY tv.base_price_rub ASC`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var result []*models.TariffWithVersion
+	for rows.Next() {
+		tv := &models.TariffWithVersion{}
+		if err := rows.Scan(&tv.ID, &tv.Code, &tv.Name, &tv.Description, &tv.BasePriceRub, &tv.PrepaidAmountRub, &tv.DurationDays); err != nil {
+			return nil, err
+		}
+		result = append(result, tv)
+	}
+	return result, rows.Err()
 }
 
 // GetTariff получает тариф по ID

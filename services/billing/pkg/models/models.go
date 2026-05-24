@@ -45,6 +45,17 @@ type TariffVersion struct {
 	CreatedAt        time.Time `json:"created_at" db:"created_at"`
 }
 
+// TariffWithVersion тариф с текущей активной версией
+type TariffWithVersion struct {
+	ID               int16     `json:"id"`
+	Code             string    `json:"code"`
+	Name             string    `json:"name"`
+	Description      string    `json:"description"`
+	BasePriceRub     float64   `json:"base_price_rub"`
+	PrepaidAmountRub float64   `json:"prepaid_amount_rub"`
+	DurationDays     int       `json:"duration_days"`
+}
+
 // TariffServicePrice цена услуги в тарифе
 type TariffServicePrice struct {
 	ID                int32     `json:"id" db:"id"`
