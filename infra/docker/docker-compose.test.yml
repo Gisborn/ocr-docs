@@ -1,0 +1,105 @@
+# Test Docker Compose для E2E тестов в CI
+# Поднимает все сервисы + тестовые БД на localhost
+# Используется в GitHub Actions перед деплоем на демо
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: api_scan
+      POSTGRES_PASSWORD: api_scan_secret
+      POSTGRES_DB: api_scan
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U api_scan -d api_scan"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  postgres-billing:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: billing
+      POSTGRES_PASSWORD: billing_secret
+      POSTGRES_DB: billing_db
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U billing -d billing_db"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  billing:
+    image: ghcr.io/gisborn/ocr-docs/billing:latest
+    environment:
+      PORT: "8080"
+      DATABASE_URL: "postgres://billing:billing_secret@postgres-billing:5432/billing_db"
+      BILLING_SERVICE_TOKEN: "test-token"
+    depends_on:
+      postgres-billing:
+        condition: service_healthy
+    ports:
+      - "8081:8080"
+
+  api-gateway:
+    image: ghcr.io/gisborn/ocr-docs/api-gateway:latest
+    environment:
+      PORT: "8080"
+      DATABASE_URL: "postgres://api_scan:api_scan_secret@postgres:5432/api_scan"
+      REDIS_ADDR: "redis:6379"
+      ORCHESTRATOR_URL: "http://orchestrator:8080"
+      BILLING_URL: "http://billing:8080"
+      BILLING_WEBHOOK_URL: "http://billing:8080"
+      CABINET_URL: "http://cabinet:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      billing:
+        condition: service_started
+    ports:
+      - "8080:8080"
+
+  cabinet:
+    image: ghcr.io/gisborn/ocr-docs/cabinet:latest
+    environment:
+      PORT: "8080"
+      DATABASE_URL: "postgres://api_scan:api_scan_secret@postgres:5432/api_scan"
+      BILLING_URL: "http://billing:8080"
+      BILLING_SERVICE_TOKEN: "test-token"
+      SERVICE_NAME: "A docs"
+      SERVICE_TAGLINE: "распознавание документов"
+      SERVICE_DOMAIN: "localhost"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      billing:
+        condition: service_started
+    ports:
+      - "8084:8080"
+
+  orchestrator:
+    image: ghcr.io/gisborn/ocr-docs/orchestrator:latest
+    environment:
+      PORT: "8080"
+      BILLING_API_URL: "http://billing:8080"
+      BILLING_SERVICE_TOKEN: "test-token"
+      OCR_CONFIDENCE_THRESHOLD: "0.80"
+    depends_on:
+      billing:
+        condition: service_started
+    ports:
+      - "8083:8080"
