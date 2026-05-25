@@ -19,10 +19,14 @@ tests/
 
 ```bash
 # Запуск (SQL тесты пропускаются автоматически, если БД недоступна)
-make test
+make check
 
 # Или
-go test ./services/...
+export PATH="/c/ALEX/go/bin:$PATH"
+go test -count=1 ./pkg/... ./services/...
+
+# Полная проверка с Docker БД + линтер
+make pre-push
 ```
 
 **Покрытие:**
@@ -41,20 +45,16 @@ go test ./services/...
 Тестируют PostgreSQL-репозитории всех сервисов.
 
 ```bash
-# 1. Поднять PostgreSQL
-docker compose -f infra/docker/docker-compose.test.yml up -d postgres postgres-billing
+# 1. Поднять PostgreSQL и Redis
+docker compose -f infra/docker/docker-compose.test.yml up -d
 
-# 2. Применить миграции
-cd migrations/main && goose up
-cd ../billing && goose up
-
-# 3. Запустить SQL тесты
-export TEST_DATABASE_URL=postgres://api_scan:api_scan_secret@localhost:5432/api_scan
-export TEST_BILLING_DATABASE_URL=postgres://billing:billing_secret@localhost:5433/billing_db
-go test ./services/api-gateway/internal/repository/...
-go test ./services/billing/internal/repository/...
-go test ./services/billing-webhook-yookassa/internal/repository/...
-go test ./services/cabinet/internal/repository/...
+# 2. Запустить SQL тесты (миграции применяются автоматически)
+export TEST_DATABASE_URL=postgres://api_scan:api_scan_secret@localhost:15432/api_scan
+export TEST_BILLING_DATABASE_URL=postgres://billing:billing_secret@localhost:15433/billing_db
+go test -count=1 ./services/api-gateway/internal/repository/...
+go test -count=1 ./services/billing/internal/repository/...
+go test -count=1 ./services/billing-webhook-yookassa/internal/repository/...
+go test -count=1 ./services/cabinet/internal/repository/...
 ```
 
 **Покрытые репозитории:**
@@ -82,8 +82,8 @@ make test-integration
 - API ключи: формат, валидация
 
 **Требования:**
-- PostgreSQL на портах 5432, 5433
-- Redis на порту 6379
+- PostgreSQL на портах 15432, 15433
+- Redis на порту 16379
 - Cabinet Service на порту 8084
 - API Gateway на порту 8080
 
@@ -124,9 +124,9 @@ func TestService_Method(t *testing.T) {
 
 ```go
 func TestPostgresRepository_Method(t *testing.T) {
-    pool := testdb.MustPool(t, testdb.DefaultMainURL())
-    testdb.ApplyMigrations(t, pool, "../../../../migrations/main")
-    testdb.Cleanup(t, pool, "table1", "table2")
+    // SetupTestDB создаёт эфемерную схему, применяет миграции,
+    // сбрасывает SERIAL-последовательности и регистрирует t.Cleanup
+    pool := testdb.SetupTestDB(t, "postgres://...", "../../../../migrations/main")
     
     repo := repository.NewPostgresRepository(pool)
     // Test CRUD operations against real PostgreSQL
@@ -150,8 +150,20 @@ func TestFlow(t *testing.T) {
 
 ## CI/CD
 
-В pipeline запускаются:
-1. **Lint** — `golangci-lint`
-2. **Unit tests** — `go test -race` (SQL тесты выполняются, т.к. PostgreSQL поднят в CI)
-3. **Integration tests** — E2E с ephemeral PostgreSQL + Redis в Docker
+В pipeline (`.github/workflows/ci.yml`) запускаются:
+1. **Lint** — `golangci-lint` (Go 1.24)
+2. **Unit tests** — `go test -race` с эфемерными PostgreSQL-схемами
+3. **Integration tests** — E2E с PostgreSQL + Redis в Docker, миграции `goose@v3.24.0`
 4. **Build images** — проверка сборки всех Docker образов
+
+### Pre-push hook
+
+Локальный `.git/hooks/pre-push` блокирует push, если:
+- `go build` падает
+- `go test` падает
+- `golangci-lint` найдёт ошибки (если установлен)
+
+```bash
+make pre-push   # полная проверка с Docker БД
+make check      # быстрая проверка без Docker
+```

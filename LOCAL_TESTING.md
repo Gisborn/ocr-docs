@@ -22,7 +22,7 @@
 
 ```bash
 # 1. Запуск инфраструктуры
-docker-compose up -d postgres postgres-billing redis
+docker compose -f infra/docker/docker-compose.test.yml up -d
 
 # 2. Применение миграций
 cd migrations/main && goose up
@@ -33,10 +33,10 @@ docker exec -i api-scan-postgres psql -U api_scan -d api_scan < scripts/seed.sql
 docker exec -i api-scan-postgres-billing psql -U billing -d billing_db < scripts/seed.sql
 
 # 4. Запуск всех сервисов
-docker-compose --profile billing --profile gateway --profile cabinet up -d
+docker compose -f infra/docker/docker-compose.test.yml up -d
 
 # 5. Проверка статуса
-docker-compose ps
+docker compose -f infra/docker/docker-compose.test.yml ps
 ```
 
 ## Тестовые данные
@@ -49,14 +49,25 @@ docker-compose ps
 | **Password** | `password` | Пароль |
 | **Org ID** | `1` | ID организации |
 | **Billing Acc** | `1` | ID счёта биллинга |
-| **Тариф Free** | `1000₽ prepaid` | Бесплатный с предоплатой |
-| **Тариф Pro** | `20000₽/мес + 6000₽ prepaid` | Подписка |
+| **Тариф Free** | `0 ₽` | 10 распознаваний в месяц |
+| **Тариф Basic** | `3 ₽/операция` | Оплата по факту |
+| **Тариф Pro** | `10000₽/мес + 5000 prepaid` | Подписка |
 
 ## Пошаговое тестирование
 
-### 1. Вход в кабинет
+### 1. Регистрация и вход в кабинет
 
 ```bash
+# Register (требуется org_name и accepted_terms)
+curl -X POST http://localhost:8084/api/v1/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{
+    "org_name": "Test Org",
+    "email": "test@example.com",
+    "password": "password",
+    "accepted_terms": true
+  }'
+
 # Login
 curl -X POST http://localhost:8084/api/v1/auth/login \
   -H "Content-Type: application/json" \
@@ -162,7 +173,13 @@ curl -X GET "http://localhost:8080/v1/billing/accounts/1/balance" \
 
 ### 6. Покупка подписки Pro
 
+Цены берутся из БД (endpoint `GET /api/v1/tariffs`).
+
 ```bash
+# Просмотр доступных тарифов
+curl http://localhost:8084/api/v1/tariffs \
+  -H "Authorization: Bearer $SESSION_TOKEN"
+
 # Создание подписки через Billing API напрямую
 curl -X POST http://localhost:8081/accounts/1/subscriptions \
   -H "Content-Type: application/json" \
@@ -173,10 +190,9 @@ curl -X POST http://localhost:8081/accounts/1/subscriptions \
 
 # Response:
 # {
-#   "id": 1,
-#   "tariff_code": "pro",
+#   "subscription_id": 1,
 #   "status": "active",
-#   "prepaid_remaining_rub": 6000
+#   "amount_charged_rub": 10000
 # }
 ```
 
@@ -403,9 +419,9 @@ curl https://lk.adocs.ru/health
 curl -X POST https://lk.adocs.ru/api/v1/auth/register \
   -H "Content-Type: application/json" \
   -d '{
+    "org_name": "ООО Пример",
     "email": "user@example.com",
     "password": "password",
-    "organization_name": "ООО Пример",
     "accepted_terms": true
   }'
 
@@ -437,26 +453,64 @@ curl https://api.adocs.ru/v1/billing/accounts/me/balance \
 
 ---
 
+## Автоматическая проверка перед push
+
+### Pre-push hook
+
+Репозиторий настроен на автоматический pre-push hook (`.git/hooks/pre-push`).
+При каждом `git push` выполняется:
+1. Старт Docker test DB (PostgreSQL ×2 + Redis)
+2. `go build ./pkg/... ./services/...`
+3. `go test -count=1 ./pkg/... ./services/...`
+4. `golangci-lint run --timeout=5m` (если установлен)
+
+```bash
+# Ручной запуск полной проверки
+make pre-push
+
+# Быстрая проверка без Docker (SQL тесты пропустятся)
+make check
+```
+
+### Локальный линтер
+
+```bash
+# Установка golangci-lint (если ещё не установлен)
+go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+
+# Запуск
+make lint
+# или
+export PATH="/c/ALEX/go/bin:$PATH"
+golangci-lint run --timeout=5m ./pkg/... ./services/...
+```
+
+Конфигурация линтера: `.golangci.yml`. Тестовые файлы (`*_test.go`, `mock_*.go`) исключены из проверки `errcheck`.
+
+### Go версия
+
+- `go.mod` требует `go 1.24`
+- Локально может быть установлен Go 1.25 (в `C:\ALEX\go`)
+- CI использует Go 1.24 для совместимости с `golangci-lint`
+
 ## SQL-тесты репозиториев
 
-Тесты для PostgreSQL-репозиториев (все 4 сервиса):
+Тесты для PostgreSQL-репозиториев используют **эфемерные схемы** (изолированные на каждый запуск):
 
 ```bash
 # 1. Поднять PostgreSQL
-docker compose -f infra/docker/docker-compose.test.yml up -d postgres postgres-billing
+docker compose -f infra/docker/docker-compose.test.yml up -d
 
-# 2. Применить миграции
-cd migrations/main && goose up
-cd ../billing && goose up
-
-# 3. Запустить SQL тесты
-export TEST_DATABASE_URL=postgres://api_scan:api_scan_secret@localhost:5432/api_scan
-export TEST_BILLING_DATABASE_URL=postgres://billing:billing_secret@localhost:5433/billing_db
+# 2. Запустить SQL тесты (миграции применяются автоматически внутри теста)
+export TEST_DATABASE_URL=postgres://api_scan:api_scan_secret@localhost:15432/api_scan
+export TEST_BILLING_DATABASE_URL=postgres://billing:billing_secret@localhost:15433/billing_db
 go test ./services/api-gateway/internal/repository/...
 go test ./services/billing/internal/repository/...
 go test ./services/billing-webhook-yookassa/internal/repository/...
 go test ./services/cabinet/internal/repository/...
 ```
+
+Каждый тест создаёт уникальную схему `test_<timestamp>_<rand>`, применяет миграции `goose up` и удаляет схему в `t.Cleanup`. Это позволяет запускать тесты параллельно без конфликтов.
 
 Если PostgreSQL недоступна, тесты автоматически пропускаются (`t.Skip`).
 
