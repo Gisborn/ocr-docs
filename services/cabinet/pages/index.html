@@ -67,7 +67,7 @@
             --tariff-current-text: #d1fae5;
             --tariff-current-text-secondary: #6ee7b7;
         }
-        .logo-img { height: 36px; width: auto; display: block; }
+        .logo-img { height: 50px; width: auto; display: block; }
         [data-theme="dark"] .logo-img { filter: brightness(0) invert(1); }
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
@@ -97,20 +97,12 @@
             border-bottom: 1px solid var(--sidebar-border);
         }
         .sidebar-header .brand {
-            display: inline-flex;
-            align-items: center;
-            gap: 10px;
+            display: block;
         }
-        .sidebar-header .brand svg {
-            height: 32px;
+        .sidebar-header .brand img {
+            height: 50px;
             width: auto;
-            flex-shrink: 0;
-        }
-        .sidebar-header h1 {
-            font-size: 20px;
-            font-weight: 700;
-            color: var(--text);
-            letter-spacing: -0.5px;
+            display: block;
         }
         .sidebar-header p {
             font-size: 12px;
@@ -664,10 +656,8 @@
     <aside class="sidebar">
         <div class="sidebar-header">
             <div class="brand">
-                <img src="/assets/logo.svg" class="logo-img" alt="Adocs">
-                <h1 id="serviceName">Adocs</h1>
+                <img src="/assets/logo.png" class="logo-img" alt="Adocs">
             </div>
-            <p id="serviceTagline">распознавание документов</p>
         </div>
         <nav class="sidebar-nav">
             <a class="nav-item active" onclick="navigate('dashboard')">
