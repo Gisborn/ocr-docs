@@ -1183,7 +1183,7 @@ async function confirmTopup() {
 
 async function loadHistory() {
     try {
-        const res = await fetch(`${API_BASE}/api/v1/history?from=${from}&to=${to}`, { headers: { 'Authorization': 'Bearer ' + sessionToken } });
+        const res = await fetch(`${API_BASE}/api/v1/history`, { headers: { 'Authorization': 'Bearer ' + sessionToken } });
         if (!res.ok) throw new Error('err');
         const events = await res.json();
         const tbody = document.getElementById('historyTable');
@@ -1203,13 +1203,28 @@ async function loadHistory() {
                 'refund': 'Возврат'
             };
             const typeLabel = typeMap[e.type] || e.type;
-            const amount = (e.real_amount_rub || 0) + (e.prepaid_amount_rub || 0);
-            const amountStr = amount > 0 ? '+' + amount.toFixed(2) + ' ₽' : amount.toFixed(2) + ' ₽';
+            let amountStr, color;
+            if (e.type === 'prepaid_usage') {
+                const ops = e.prepaid_amount_rub || 0;
+                amountStr = (ops > 0 ? '+' : '') + ops.toFixed(0) + ' оп.';
+                color = ops > 0 ? 'var(--success)' : 'var(--danger)';
+            } else if (e.type === 'upgrade_bonus') {
+                const ops = e.prepaid_amount_rub || 0;
+                amountStr = '+' + ops.toFixed(0) + ' оп.';
+                color = 'var(--success)';
+            } else if (e.type === 'subscription_expired') {
+                amountStr = '—';
+                color = 'var(--text-secondary)';
+            } else {
+                const amount = e.real_amount_rub || 0;
+                amountStr = (amount > 0 ? '+' : '') + amount.toFixed(2) + ' ₽';
+                color = amount > 0 ? 'var(--success)' : 'var(--danger)';
+            }
             const date = e.created_at ? new Date(e.created_at).toLocaleDateString('ru-RU') : '-';
             return `<tr>
                 <td>${date}</td>
                 <td>${escapeHtml(typeLabel)}</td>
-                <td style="color:${amount > 0 ? 'var(--success)' : 'var(--danger)'};font-weight:600">${amountStr}</td>
+                <td style="color:${color};font-weight:600">${amountStr}</td>
                 <td><span class="badge badge-success">Выполнено</span></td>
             </tr>`;
         }).join('');
