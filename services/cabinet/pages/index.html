@@ -1115,6 +1115,7 @@ async function enterApp() {
     await loadBalance();
     await loadApiKeys();
     await loadTariff();
+    await loadDashboardStats();
 }
 
 async function loadOrgData() {
@@ -1405,6 +1406,22 @@ async function selectTariff(code) {
 }
 
 // ---------- Usage Report ----------
+async function loadDashboardStats() {
+    try {
+        const res = await fetch(`${API_BASE}/api/v1/history`, { headers: { 'Authorization': 'Bearer ' + sessionToken } });
+        if (!res.ok) return;
+        const events = await res.json();
+        const now = new Date();
+        const currentMonth = now.getMonth();
+        const currentYear = now.getFullYear();
+        const count = events.filter(e => {
+            const d = new Date(e.created_at);
+            return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+        }).length;
+        document.getElementById('dashUsage').textContent = count;
+    } catch (e) { console.error(e); }
+}
+
 function initUsageDates() {
     const to = new Date();
     const from = new Date();
@@ -1418,7 +1435,7 @@ async function loadUsage() {
     const to = document.getElementById('usageTo').value;
     if (!from || !to) return alert('Выберите период');
     try {
-        const res = await fetch(`${API_BASE}/v1/events`, { headers: { 'Authorization': 'Bearer ' + sessionToken } });
+        const res = await fetch(`${API_BASE}/api/v1/history`, { headers: { 'Authorization': 'Bearer ' + sessionToken } });
         if (!res.ok) throw new Error((await res.json()).error);
         const events = await res.json();
 
