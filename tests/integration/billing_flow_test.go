@@ -155,7 +155,7 @@ func TestBillingFlow(t *testing.T) {
 
 	// ── 4. Topup Balance ──
 	t.Run("Topup Balance", func(t *testing.T) {
-		body, _ := json.Marshal(map[string]float64{"amount_rub": 2000})
+		body, _ := json.Marshal(map[string]float64{"amount_rub": 15000})
 		req, _ := http.NewRequest("POST", fmt.Sprintf("%s/v1/billing/accounts/%d/topup", apiGatewayURL, billingAccountID), bytes.NewBuffer(body))
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("X-Api-Key", apiKey)
@@ -193,8 +193,8 @@ func TestBillingFlow(t *testing.T) {
 		var r map[string]interface{}
 		json.NewDecoder(resp.Body).Decode(&r)
 		realBalance, _ := r["real_balance_rub"].(float64)
-		if realBalance < 1500 {
-			t.Fatalf("Expected balance >= 1500 after topup, got %.2f", realBalance)
+		if realBalance < 10000 {
+			t.Fatalf("Expected balance >= 10000 after topup, got %.2f", realBalance)
 		}
 		t.Logf("Balance: real=%.2f, prepaid=%.2f", realBalance, r["prepaid_balance_rub"])
 	})
@@ -302,7 +302,7 @@ func TestBillingFlow(t *testing.T) {
 		var r map[string]interface{}
 		json.NewDecoder(resp.Body).Decode(&r)
 		realBalance, _ := r["real_balance_rub"].(float64)
-		if realBalance >= 2000 {
+		if realBalance >= 15000 {
 			t.Fatalf("Expected balance decreased after commit, got %.2f", realBalance)
 		}
 		t.Logf("Balance after commit: real=%.2f, prepaid=%.2f", realBalance, r["prepaid_balance_rub"])

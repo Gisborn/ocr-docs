@@ -12,6 +12,8 @@ help:
 	@echo "  make migrate      - Run database migrations"
 	@echo "  make build        - Build all services binaries"
 	@echo "  make test         - Run all tests"
+	@echo "  make e2e-ci       - E2E tests with GHCR images (as CI does)"
+	@echo "  make e2e-local    - E2E tests with locally built images"
 	@echo "  make swagger      - Generate Swagger documentation"
 	@echo "  make clean        - Clean build artifacts"
 	@echo ""
@@ -168,3 +170,11 @@ check:
 	@PATH="/c/ALEX/go/bin:$$PATH" go test -short -count=1 ./pkg/... ./services/...
 	@PATH="/c/ALEX/go/bin:$$PATH" golangci-lint run --timeout=5m ./...
 	@echo "✅ Quick check passed"
+
+# E2E tests as in CI (uses GHCR :latest images)
+e2e-ci:
+	@bash scripts/e2e-test-ci.sh
+
+# E2E tests with locally built images (tests current code)
+e2e-local:
+	@bash scripts/e2e-test-local.sh

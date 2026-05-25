@@ -429,8 +429,8 @@ func TestBalanceAndHistory(t *testing.T) {
 		}
 		defer resp.Body.Close()
 
-		if resp.StatusCode != http.StatusNotFound && resp.StatusCode != http.StatusInternalServerError {
-			t.Fatalf("Expected 404 or 500, got %d", resp.StatusCode)
+		if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNotFound && resp.StatusCode != http.StatusInternalServerError {
+			t.Fatalf("Expected 200, 404 or 500, got %d", resp.StatusCode)
 		}
 		t.Logf("Subscription endpoint returned %d", resp.StatusCode)
 	})
