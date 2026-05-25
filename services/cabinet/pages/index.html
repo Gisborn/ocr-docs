@@ -263,20 +263,26 @@
         .theme-switch-wrap {
             display: flex;
             align-items: center;
-            justify-content: space-between;
+            justify-content: center;
+            gap: 8px;
             margin-top: 12px;
             padding: 0 4px;
         }
-        .theme-switch-label {
-            font-size: 13px;
-            color: var(--sidebar-text);
-            font-weight: 500;
+        .theme-icon {
+            font-size: 14px;
+            line-height: 1;
+            opacity: 0.6;
+            transition: opacity .3s;
+            user-select: none;
         }
+        .theme-switch-wrap:has(input:checked) .theme-icon.sun { opacity: 0.3; }
+        .theme-switch-wrap:has(input:not(:checked)) .theme-icon.moon { opacity: 0.3; }
         .theme-switch {
             position: relative;
             display: inline-block;
-            width: 44px;
-            height: 24px;
+            width: 48px;
+            height: 26px;
+            flex-shrink: 0;
         }
         .theme-switch input {
             opacity: 0;
@@ -289,13 +295,13 @@
             top: 0; left: 0; right: 0; bottom: 0;
             background-color: var(--border);
             transition: .3s;
-            border-radius: 24px;
+            border-radius: 26px;
         }
         .theme-slider:before {
             position: absolute;
             content: "";
-            height: 18px;
-            width: 18px;
+            height: 20px;
+            width: 20px;
             left: 3px;
             bottom: 3px;
             background-color: white;
@@ -306,7 +312,7 @@
             background-color: var(--primary);
         }
         .theme-switch input:checked + .theme-slider:before {
-            transform: translateX(20px);
+            transform: translateX(22px);
         }
         .btn-outline-light {
             background: transparent;
@@ -690,11 +696,12 @@
                 </div>
             </div>
             <div class="theme-switch-wrap">
-                <span class="theme-switch-label" id="themeLabel">Тёмная тема</span>
+                <span class="theme-icon sun">☀️</span>
                 <label class="theme-switch">
                     <input type="checkbox" id="themeToggle" onchange="toggleTheme()">
                     <span class="theme-slider"></span>
                 </label>
+                <span class="theme-icon moon">🌙</span>
             </div>
             <button class="btn btn-outline-light btn-sm" style="width:100%;margin-top:8px" onclick="logout()">Выйти</button>
         </div>
@@ -1029,9 +1036,7 @@ function toggleTheme() {
 function updateThemeToggle() {
     const theme = getCurrentTheme();
     const toggle = document.getElementById('themeToggle');
-    const label = document.getElementById('themeLabel');
     if (toggle) toggle.checked = theme === 'dark';
-    if (label) label.textContent = theme === 'dark' ? 'Светлая тема' : 'Тёмная тема';
 }
 
 // ---------- Navigation ----------
@@ -1044,7 +1049,7 @@ function navigate(page) {
     document.getElementById('pageTitle').textContent = titles[page] || page;
     if (page === 'billing') { loadBalance(); loadHistory(); loadTariff(); }
     if (page === 'keys') loadApiKeys();
-    if (page === 'usage') initUsageDates();
+    if (page === 'usage') { initUsageDates(); loadUsage(); }
 }
 
 // ---------- Auth ----------
@@ -1413,36 +1418,46 @@ async function loadUsage() {
     const to = document.getElementById('usageTo').value;
     if (!from || !to) return alert('Выберите период');
     try {
-        const res = await fetch(`${API_BASE}/api/v1/usage?from=${from}&to=${to}`, { headers: { 'Authorization': 'Bearer ' + sessionToken } });
+        const res = await fetch(`${API_BASE}/v1/events`, { headers: { 'Authorization': 'Bearer ' + sessionToken } });
         if (!res.ok) throw new Error((await res.json()).error);
-        const data = await res.json();
-        usageData = data.items || [];
-        renderUsageChart(usageData);
-        renderUsageTable(usageData);
-    } catch (e) {
-        // Fallback: mock data for demo
-        usageData = generateMockUsage(from, to);
-        renderUsageChart(usageData);
-        renderUsageTable(usageData);
-    }
-}
+        const events = await res.json();
 
-function generateMockUsage(from, to) {
-    const items = [];
-    const start = new Date(from);
-    const end = new Date(to);
-    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-        if (Math.random() > 0.3) {
-            const ops = Math.floor(Math.random() * 50) + 5;
-            items.push({
-                date: d.toISOString().split('T')[0],
-                service: 'OCR Паспорт',
-                operations: ops,
-                amount: (ops * 3).toFixed(2)
-            });
-        }
+        const fromDate = new Date(from);
+        const toDate = new Date(to);
+        toDate.setHours(23, 59, 59, 999);
+
+        const serviceNames = { passport_rf: 'OCR Паспорт' };
+
+        // Filter and transform events
+        const filtered = events.filter(e => {
+            const d = new Date(e.created_at);
+            return d >= fromDate && d <= toDate;
+        }).map(e => ({
+            date: e.created_at.split('T')[0],
+            service: serviceNames[e.service_id] || (e.type === 'balance_topup' ? 'Пополнение баланса' : e.service_id || e.type),
+            operations: 1,
+            amount: Math.abs(e.real_amount_rub).toFixed(2)
+        }));
+
+        // Aggregate by day for chart
+        const daily = {};
+        filtered.forEach(i => {
+            if (!daily[i.date]) daily[i.date] = { date: i.date, operations: 0, amount: 0 };
+            daily[i.date].operations += i.operations;
+            daily[i.date].amount += parseFloat(i.amount);
+        });
+        const chartData = Object.values(daily).sort((a, b) => a.date.localeCompare(b.date));
+        chartData.forEach(d => { d.amount = d.amount.toFixed(2); d.service = 'Всего'; });
+
+        usageData = chartData;
+        renderUsageChart(chartData);
+        renderUsageTable(filtered.reverse()); // newest first
+    } catch (e) {
+        alert('Ошибка загрузки данных: ' + e.message);
+        usageData = [];
+        renderUsageChart([]);
+        renderUsageTable([]);
     }
-    return items;
 }
 
 function getCssVar(name) {

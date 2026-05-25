@@ -91,6 +91,9 @@
         .badge-post { background: #dcfce7; color: #166534; }
         [data-theme="dark"] .badge-get { background: #1e3a5f; color: #93c5fd; }
         [data-theme="dark"] .badge-post { background: #14532d; color: #86efac; }
+        /* Hide header when embedded in cabinet iframe */
+        body.iframe-mode .header { display: none; }
+        body.iframe-mode { padding-top: 0; }
 
         .endpoint {
             background: var(--surface); border: 1px solid var(--border);
@@ -147,6 +150,7 @@
         .code-card .status-401 { color: var(--danger); }
         .code-card .status-402 { color: var(--warning); }
         .code-card .status-413 { color: var(--warning); }
+        .code-card .status-415 { color: var(--warning); }
         .code-card .status-429 { color: var(--warning); }
         .code-card .desc { color: var(--text-secondary); font-size: 13px; margin-top: 2px; }
 
@@ -257,6 +261,16 @@ file: &lt;binary image data&gt;  (JPEG, PNG, WebP, макс. 10 МБ)</pre>
                     <tr><td><code>division_code</code></td><td>string</td><td>Код подразделения (XXX-XXX)</td></tr>
                     <tr><td><code>registration_address</code></td><td>string|null</td><td>Адрес регистрации (если распознан)</td></tr>
                 </table>
+
+                <h3>Ошибки</h3>
+                <table class="params-table">
+                    <tr><th>Код</th><th>Описание</th></tr>
+                    <tr><td><code>401 Unauthorized</code></td><td>Отсутствует или невалидный X-Api-Key</td></tr>
+                    <tr><td><code>402 Payment Required</code></td><td>Недостаточно средств на балансе</td></tr>
+                    <tr><td><code>413 Payload Too Large</code></td><td>Файл больше 10 МБ</td></tr>
+                    <tr><td><code>415 Unsupported Media Type</code></td><td>Неподдерживаемый формат файла (допустимы JPEG, PNG, WebP)</td></tr>
+                    <tr><td><code>429 Too Many Requests</code></td><td>Превышен лимит 10 RPS на ключ</td></tr>
+                </table>
             </div>
         </div>
 
@@ -290,6 +304,12 @@ file: &lt;binary image data&gt;  (JPEG, PNG, WebP, макс. 10 МБ)</pre>
     "expires_at": "2026-06-01T00:00:00Z"
   }
 }</pre>
+
+                <h3>Ошибки</h3>
+                <table class="params-table">
+                    <tr><th>Код</th><th>Описание</th></tr>
+                    <tr><td><code>401 Unauthorized</code></td><td>Отсутствует или невалидный X-Api-Key</td></tr>
+                </table>
             </div>
 
             <div class="endpoint">
@@ -311,6 +331,12 @@ file: &lt;binary image data&gt;  (JPEG, PNG, WebP, макс. 10 МБ)</pre>
   "prepaid_amount_rub": 0,
   "created_at": "2026-05-20T14:32:00Z"
 }]</pre>
+
+                <h3>Ошибки</h3>
+                <table class="params-table">
+                    <tr><th>Код</th><th>Описание</th></tr>
+                    <tr><td><code>401 Unauthorized</code></td><td>Отсутствует или невалидный X-Api-Key</td></tr>
+                </table>
             </div>
         </div>
 
@@ -332,6 +358,10 @@ file: &lt;binary image data&gt;  (JPEG, PNG, WebP, макс. 10 МБ)</pre>
                 <div class="code-card">
                     <div class="status status-413">413 Payload Too Large</div>
                     <div class="desc">Файл больше 10 МБ</div>
+                </div>
+                <div class="code-card">
+                    <div class="status status-415">415 Unsupported Media Type</div>
+                    <div class="desc">Неподдерживаемый формат файла</div>
                 </div>
                 <div class="code-card">
                     <div class="status status-429">429 Too Many Requests</div>
@@ -359,6 +389,11 @@ file: &lt;binary image data&gt;  (JPEG, PNG, WebP, макс. 10 МБ)</pre>
     </div>
 
     <script>
+        // Detect iframe mode and hide header
+        if (window.self !== window.top) {
+            document.body.classList.add('iframe-mode');
+        }
+
         // Sync theme from parent cabinet iframe
         window.addEventListener('message', function(e) {
             if (e.data && e.data.theme) {
