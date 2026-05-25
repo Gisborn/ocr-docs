@@ -874,12 +874,13 @@
                             <thead>
                                 <tr>
                                     <th>Дата</th>
+                                    <th>Услуга</th>
                                     <th>Кол-во операций</th>
                                     <th>Сумма (₽)</th>
                                 </tr>
                             </thead>
                             <tbody id="usageTable">
-                                <tr><td colspan="3" class="empty-state">Выберите период и нажмите «Показать»</td></tr>
+                                <tr><td colspan="4" class="empty-state">Выберите период и нажмите «Показать»</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -1438,7 +1439,21 @@ async function loadUsage() {
             amount: Math.abs(e.real_amount_rub).toFixed(2)
         }));
 
-        // Aggregate by day for chart
+        // Aggregate by day + service for table
+        const dailyService = {};
+        filtered.forEach(i => {
+            const key = i.date + '|' + i.service;
+            if (!dailyService[key]) dailyService[key] = { date: i.date, service: i.service, operations: 0, amount: 0 };
+            dailyService[key].operations += i.operations;
+            dailyService[key].amount += parseFloat(i.amount);
+        });
+        const tableData = Object.values(dailyService).sort((a, b) => {
+            if (a.date !== b.date) return a.date.localeCompare(b.date);
+            return a.service.localeCompare(b.service);
+        });
+        tableData.forEach(d => { d.amount = d.amount.toFixed(2); });
+
+        // Aggregate by day only for chart
         const daily = {};
         filtered.forEach(i => {
             if (!daily[i.date]) daily[i.date] = { date: i.date, operations: 0, amount: 0 };
@@ -1446,11 +1461,11 @@ async function loadUsage() {
             daily[i.date].amount += parseFloat(i.amount);
         });
         const chartData = Object.values(daily).sort((a, b) => a.date.localeCompare(b.date));
-        chartData.forEach(d => { d.amount = d.amount.toFixed(2); d.service = 'Всего'; });
+        chartData.forEach(d => { d.amount = d.amount.toFixed(2); });
 
-        usageData = chartData;
+        usageData = tableData;
         renderUsageChart(chartData);
-        renderUsageTable(chartData.reverse()); // newest first
+        renderUsageTable(tableData.reverse()); // newest first
     } catch (e) {
         alert('Ошибка загрузки данных: ' + e.message);
         usageData = [];
@@ -1466,8 +1481,15 @@ function getCssVar(name) {
 function renderUsageChart(items) {
     const ctx = document.getElementById('usageChart').getContext('2d');
     if (usageChart) usageChart.destroy();
-    const labels = items.map(i => i.date.split('-').slice(1).reverse().join('.'));
-    const values = items.map(i => parseFloat(i.amount));
+    // items may contain multiple services per day; aggregate to daily totals
+    const daily = {};
+    items.forEach(i => {
+        if (!daily[i.date]) daily[i.date] = 0;
+        daily[i.date] += parseFloat(i.amount);
+    });
+    const sortedDates = Object.keys(daily).sort();
+    const labels = sortedDates.map(d => d.split('-').slice(1).reverse().join('.'));
+    const values = sortedDates.map(d => daily[d]);
     const gridColor = getCssVar('--chart-grid');
     const textColor = getCssVar('--chart-text');
     const primaryColor = getCssVar('--primary');
@@ -1504,10 +1526,11 @@ function renderUsageChart(items) {
 
 function renderUsageTable(items) {
     const tbody = document.getElementById('usageTable');
-    if (!items.length) { tbody.innerHTML = '<tr><td colspan="3" class="empty-state">Нет данных за выбранный период</td></tr>'; return; }
+    if (!items.length) { tbody.innerHTML = '<tr><td colspan="4" class="empty-state">Нет данных за выбранный период</td></tr>'; return; }
     tbody.innerHTML = items.map(i => `
         <tr>
             <td>${new Date(i.date).toLocaleDateString('ru-RU')}</td>
+            <td>${escapeHtml(i.service)}</td>
             <td>${i.operations}</td>
             <td>${i.amount} ₽</td>
         </tr>
@@ -1518,6 +1541,7 @@ function exportXLSX() {
     if (!usageData.length) return alert('Нет данных для выгрузки');
     const rows = usageData.map(i => ({
         'Дата': i.date,
+        'Услуга': i.service,
         'Операции': i.operations,
         'Сумма (₽)': parseFloat(i.amount)
     }));
