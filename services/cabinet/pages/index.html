@@ -67,6 +67,8 @@
             --tariff-current-text: #d1fae5;
             --tariff-current-text-secondary: #6ee7b7;
         }
+        .logo-img { height: 36px; width: auto; display: block; }
+        [data-theme="dark"] .logo-img { filter: brightness(0) invert(1); }
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
@@ -662,7 +664,7 @@
     <aside class="sidebar">
         <div class="sidebar-header">
             <div class="brand">
-                <svg viewBox="0 0 200 60" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="agrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#2563eb"/><stop offset="100%" stop-color="#1e40af"/></linearGradient></defs><polygon points="20,55 35,5 55,5 70,55 55,55 52,45 38,45 35,55" fill="url(#agrad)"/><polygon points="40,20 45,35 50,35 45,20" fill="#ffffff"/><rect x="78" y="12" width="6" height="6" rx="1" fill="#2563eb" opacity="0.9"/><rect x="88" y="12" width="6" height="6" rx="1" fill="#3b82f6" opacity="0.8"/><rect x="98" y="12" width="6" height="6" rx="1" fill="#60a5fa" opacity="0.7"/><rect x="108" y="12" width="6" height="6" rx="1" fill="#93c5fd" opacity="0.6"/><rect x="78" y="24" width="6" height="6" rx="1" fill="#1d4ed8" opacity="0.9"/><rect x="88" y="24" width="6" height="6" rx="1" fill="#2563eb" opacity="0.8"/><rect x="98" y="24" width="6" height="6" rx="1" fill="#3b82f6" opacity="0.7"/><rect x="108" y="24" width="6" height="6" rx="1" fill="#60a5fa" opacity="0.6"/><rect x="118" y="24" width="6" height="6" rx="1" fill="#93c5fd" opacity="0.5"/><rect x="78" y="36" width="6" height="6" rx="1" fill="#1e3a8a" opacity="0.9"/><rect x="88" y="36" width="6" height="6" rx="1" fill="#1d4ed8" opacity="0.8"/><rect x="98" y="36" width="6" height="6" rx="1" fill="#2563eb" opacity="0.7"/><rect x="108" y="36" width="6" height="6" rx="1" fill="#3b82f6" opacity="0.6"/><rect x="118" y="36" width="6" height="6" rx="1" fill="#60a5fa" opacity="0.5"/><rect x="128" y="36" width="6" height="6" rx="1" fill="#93c5fd" opacity="0.4"/><rect x="78" y="48" width="6" height="6" rx="1" fill="#172554" opacity="0.9"/><rect x="88" y="48" width="6" height="6" rx="1" fill="#1e3a8a" opacity="0.8"/><rect x="98" y="48" width="6" height="6" rx="1" fill="#1d4ed8" opacity="0.7"/><rect x="108" y="48" width="6" height="6" rx="1" fill="#2563eb" opacity="0.6"/><rect x="118" y="48" width="6" height="6" rx="1" fill="#3b82f6" opacity="0.5"/><rect x="128" y="48" width="6" height="6" rx="1" fill="#60a5fa" opacity="0.4"/><rect x="138" y="48" width="6" height="6" rx="1" fill="#93c5fd" opacity="0.3"/></svg>
+                <img src="/assets/logo.svg" class="logo-img" alt="Adocs">
                 <h1 id="serviceName">Adocs</h1>
             </div>
             <p id="serviceTagline">распознавание документов</p>
@@ -684,7 +686,7 @@
                 <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>
                 API-ключи
             </a>
-            <a class="nav-item" href="/docs">
+            <a class="nav-item" onclick="navigate('docs')">
                 <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
                 Документация API
             </a>
@@ -917,6 +919,10 @@
                 </div>
             </div>
 
+            <div id="page-docs" class="page">
+                <iframe id="docsFrame" src="/docs" style="width:100%;height:calc(100vh - 140px);border:none;border-radius:var(--radius);background:var(--surface);"></iframe>
+            </div>
+
         </div>
 
         <div class="legal-footer">
@@ -1014,6 +1020,11 @@ function setTheme(theme) {
     document.documentElement.setAttribute('data-theme', theme);
     localStorage.setItem('theme', theme);
     updateThemeToggle();
+    // Sync theme with docs iframe
+    const docsFrame = document.getElementById('docsFrame');
+    if (docsFrame && docsFrame.contentWindow) {
+        docsFrame.contentWindow.postMessage({theme: theme}, '*');
+    }
     // Re-render chart if exists to pick up new colors
     if (usageChart && usageData.length) {
         renderUsageChart(usageData);
@@ -1039,8 +1050,8 @@ function navigate(page) {
     document.getElementById('page-' + page).classList.add('active');
     document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
     event.currentTarget.classList.add('active');
-    const titles = { dashboard: 'Обзор', billing: 'Биллинг', usage: 'Потребление', keys: 'API-ключи' };
-    document.getElementById('pageTitle').textContent = titles[page];
+    const titles = { dashboard: 'Обзор', billing: 'Биллинг', usage: 'Потребление', keys: 'API-ключи', docs: 'Документация API' };
+    document.getElementById('pageTitle').textContent = titles[page] || page;
     if (page === 'billing') { loadBalance(); loadHistory(); loadTariff(); }
     if (page === 'keys') loadApiKeys();
     if (page === 'usage') initUsageDates();

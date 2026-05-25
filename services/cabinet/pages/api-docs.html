@@ -165,6 +165,9 @@
         }
         .theme-toggle:hover { border-color: var(--primary); }
 
+        .logo-img { height: 36px; width: auto; display: block; }
+        [data-theme="dark"] .logo-img { filter: brightness(0) invert(1); }
+
         @media (max-width: 640px) {
             .container { padding: 24px 16px; }
             .header { flex-direction: column; align-items: flex-start; gap: 12px; }
@@ -176,7 +179,7 @@
         <div class="header">
             <div>
                 <div class="brand">
-                    <svg viewBox="0 0 200 60" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="agrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#2563eb"/><stop offset="100%" stop-color="#1e40af"/></linearGradient></defs><polygon points="20,55 35,5 55,5 70,55 55,55 52,45 38,45 35,55" fill="url(#agrad)"/><polygon points="40,20 45,35 50,35 45,20" fill="#ffffff"/><rect x="78" y="12" width="6" height="6" rx="1" fill="#2563eb" opacity="0.9"/><rect x="88" y="12" width="6" height="6" rx="1" fill="#3b82f6" opacity="0.8"/><rect x="98" y="12" width="6" height="6" rx="1" fill="#60a5fa" opacity="0.7"/><rect x="108" y="12" width="6" height="6" rx="1" fill="#93c5fd" opacity="0.6"/><rect x="78" y="24" width="6" height="6" rx="1" fill="#1d4ed8" opacity="0.9"/><rect x="88" y="24" width="6" height="6" rx="1" fill="#2563eb" opacity="0.8"/><rect x="98" y="24" width="6" height="6" rx="1" fill="#3b82f6" opacity="0.7"/><rect x="108" y="24" width="6" height="6" rx="1" fill="#60a5fa" opacity="0.6"/><rect x="118" y="24" width="6" height="6" rx="1" fill="#93c5fd" opacity="0.5"/><rect x="78" y="36" width="6" height="6" rx="1" fill="#1e3a8a" opacity="0.9"/><rect x="88" y="36" width="6" height="6" rx="1" fill="#1d4ed8" opacity="0.8"/><rect x="98" y="36" width="6" height="6" rx="1" fill="#2563eb" opacity="0.7"/><rect x="108" y="36" width="6" height="6" rx="1" fill="#3b82f6" opacity="0.6"/><rect x="118" y="36" width="6" height="6" rx="1" fill="#60a5fa" opacity="0.5"/><rect x="128" y="36" width="6" height="6" rx="1" fill="#93c5fd" opacity="0.4"/><rect x="78" y="48" width="6" height="6" rx="1" fill="#172554" opacity="0.9"/><rect x="88" y="48" width="6" height="6" rx="1" fill="#1e3a8a" opacity="0.8"/><rect x="98" y="48" width="6" height="6" rx="1" fill="#1d4ed8" opacity="0.7"/><rect x="108" y="48" width="6" height="6" rx="1" fill="#2563eb" opacity="0.6"/><rect x="118" y="48" width="6" height="6" rx="1" fill="#3b82f6" opacity="0.5"/><rect x="128" y="48" width="6" height="6" rx="1" fill="#60a5fa" opacity="0.4"/><rect x="138" y="48" width="6" height="6" rx="1" fill="#93c5fd" opacity="0.3"/></svg>
+                    <img src="/assets/logo.svg" class="logo-img" alt="Adocs">
                     <h1>Adocs</h1>
                 </div>
                 <p>Публичное API для распознавания паспортов РФ</p>
@@ -203,7 +206,7 @@
                     <span class="badge badge-post">POST</span>
                     <code class="endpoint-path">/v1/recognize</code>
                 </div>
-                <p class="endpoint-desc">Отправляет изображение паспорта на OCR-распознавание. Списание средств происходит автоматически (reserve → commit).</p>
+                <p class="endpoint-desc">Отправляет изображение паспорта на распознавание. Списание средств происходит автоматически.</p>
 
                 <h3>Заголовки</h3>
                 <table class="params-table">
@@ -259,67 +262,50 @@ file: &lt;binary image data&gt;  (JPEG, PNG, WebP, макс. 10 МБ)</pre>
 
         <div class="section">
             <h2>💰 Баланс и подписка</h2>
-            <p>Эти endpoints работают через псевдоним <code>/accounts/me/</code> — API Gateway автоматически подставляет ваш <code>billing_account_id</code>.</p>
+            <p>Ваши персональные данные аккаунта:</p>
 
             <div class="endpoint">
                 <div class="endpoint-header">
                     <span class="badge badge-get">GET</span>
-                    <code class="endpoint-path">/v1/billing/accounts/me/balance</code>
+                    <code class="endpoint-path">/v1/me</code>
                 </div>
-                <p class="endpoint-desc">Возвращает текущий баланс (реальный + предоплаченный).</p>
+                <p class="endpoint-desc">Возвращает текущий баланс и активную подписку.</p>
 
                 <h3>Пример запроса</h3>
-                <pre>curl -X GET https://api.adocs.ru/v1/billing/accounts/me/balance \
+                <pre>curl -X GET https://api.adocs.ru/v1/me \
   -H "X-Api-Key: ВАШ_API_КЛЮЧ"</pre>
 
                 <h3>Ответ</h3>
                 <pre>{
-  "account_id": 42,
-  "real_balance_rub": 1500.00,
-  "prepaid_balance_rub": 6000.00
+  "balance": {
+    "account_id": 42,
+    "real_balance_rub": 1500.00,
+    "prepaid_balance_rub": 6000.00
+  },
+  "subscription": {
+    "subscription_id": 7,
+    "tariff_code": "pro",
+    "tariff_name": "Pro",
+    "status": "active",
+    "expires_at": "2026-06-01T00:00:00Z"
+  }
 }</pre>
             </div>
 
             <div class="endpoint">
                 <div class="endpoint-header">
                     <span class="badge badge-get">GET</span>
-                    <code class="endpoint-path">/v1/billing/accounts/me/subscriptions</code>
+                    <code class="endpoint-path">/v1/events</code>
                 </div>
-                <p class="endpoint-desc">Возвращает активную подписку или 404, если подписки нет.</p>
+                <p class="endpoint-desc">История операций (пополнения, списания, подписки).</p>
 
                 <h3>Пример запроса</h3>
-                <pre>curl -X GET https://api.adocs.ru/v1/billing/accounts/me/subscriptions \
-  -H "X-Api-Key: ВАШ_API_КЛЮЧ"</pre>
-
-                <h3>Ответ (200)</h3>
-                <pre>{
-  "subscription_id": 7,
-  "account_id": 42,
-  "tariff_code": "pro",
-  "tariff_name": "Pro",
-  "status": "active",
-  "started_at": "2026-05-01T00:00:00Z",
-  "expires_at": "2026-06-01T00:00:00Z",
-  "auto_renew": false,
-  "initial_prepaid_rub": 6000.00
-}</pre>
-            </div>
-
-            <div class="endpoint">
-                <div class="endpoint-header">
-                    <span class="badge badge-get">GET</span>
-                    <code class="endpoint-path">/v1/billing/accounts/me/events</code>
-                </div>
-                <p class="endpoint-desc">История биллинг-событий (пополнения, списания, подписки).</p>
-
-                <h3>Пример запроса</h3>
-                <pre>curl -X GET https://api.adocs.ru/v1/billing/accounts/me/events \
+                <pre>curl -X GET https://api.adocs.ru/v1/events \
   -H "X-Api-Key: ВАШ_API_КЛЮЧ"</pre>
 
                 <h3>Ответ</h3>
                 <pre>[{
   "id": 101,
-  "account_id": 42,
   "type": "pay_as_you_go",
   "real_amount_rub": 7.00,
   "prepaid_amount_rub": 0,
@@ -373,6 +359,14 @@ file: &lt;binary image data&gt;  (JPEG, PNG, WebP, макс. 10 МБ)</pre>
     </div>
 
     <script>
+        // Sync theme from parent cabinet iframe
+        window.addEventListener('message', function(e) {
+            if (e.data && e.data.theme) {
+                document.documentElement.setAttribute('data-theme', e.data.theme);
+                localStorage.setItem('theme', e.data.theme);
+            }
+        });
+
         function toggleTheme() {
             const html = document.documentElement;
             const current = html.getAttribute('data-theme') || 'light';

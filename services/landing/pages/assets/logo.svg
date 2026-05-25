@@ -1,37 +1,73 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 60" width="200" height="60">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 160" width="420" height="160">
   <defs>
     <linearGradient id="agrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3b82f6"/>
+      <stop offset="50%" stop-color="#2563eb"/>
+      <stop offset="100%" stop-color="#1d4ed8"/>
+    </linearGradient>
+    <linearGradient id="stripe1" x1="0%" y1="0%" x2="100%" y2="0%">
       <stop offset="0%" stop-color="#2563eb"/>
-      <stop offset="100%" stop-color="#1e40af"/>
+      <stop offset="70%" stop-color="#3b82f6"/>
+      <stop offset="100%" stop-color="#60a5fa" stop-opacity="0.3"/>
+    </linearGradient>
+    <linearGradient id="stripe2" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#1d4ed8"/>
+      <stop offset="70%" stop-color="#2563eb"/>
+      <stop offset="100%" stop-color="#3b82f6" stop-opacity="0.3"/>
+    </linearGradient>
+    <linearGradient id="stripe3" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#1e3a8a"/>
+      <stop offset="70%" stop-color="#1d4ed8"/>
+      <stop offset="100%" stop-color="#2563eb" stop-opacity="0.3"/>
+    </linearGradient>
+    <linearGradient id="stripe4" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#172554"/>
+      <stop offset="70%" stop-color="#1e3a8a"/>
+      <stop offset="100%" stop-color="#1d4ed8" stop-opacity="0.3"/>
     </linearGradient>
   </defs>
-  <!-- Letter A -->
-  <polygon points="20,55 35,5 55,5 70,55 55,55 52,45 38,45 35,55" fill="url(#agrad)"/>
-  <polygon points="40,20 45,35 50,35 45,20" fill="#ffffff"/>
-  <!-- Pixel dots right side -->
-  <rect x="78" y="12" width="6" height="6" rx="1" fill="#2563eb" opacity="0.9"/>
-  <rect x="88" y="12" width="6" height="6" rx="1" fill="#3b82f6" opacity="0.8"/>
-  <rect x="98" y="12" width="6" height="6" rx="1" fill="#60a5fa" opacity="0.7"/>
-  <rect x="108" y="12" width="6" height="6" rx="1" fill="#93c5fd" opacity="0.6"/>
 
-  <rect x="78" y="24" width="6" height="6" rx="1" fill="#1d4ed8" opacity="0.9"/>
-  <rect x="88" y="24" width="6" height="6" rx="1" fill="#2563eb" opacity="0.8"/>
-  <rect x="98" y="24" width="6" height="6" rx="1" fill="#3b82f6" opacity="0.7"/>
-  <rect x="108" y="24" width="6" height="6" rx="1" fill="#60a5fa" opacity="0.6"/>
-  <rect x="118" y="24" width="6" height="6" rx="1" fill="#93c5fd" opacity="0.5"/>
+  <!-- Letter A with 3D depth -->
+  <!-- Main face -->
+  <polygon points="30,135 60,15 100,15 130,135 100,135 93,105 67,105 60,135" fill="url(#agrad)"/>
+  <!-- White cutout -->
+  <polygon points="72,50 82,80 92,80 82,50" fill="#ffffff"/>
 
-  <rect x="78" y="36" width="6" height="6" rx="1" fill="#1e3a8a" opacity="0.9"/>
-  <rect x="88" y="36" width="6" height="6" rx="1" fill="#1d4ed8" opacity="0.8"/>
-  <rect x="98" y="36" width="6" height="6" rx="1" fill="#2563eb" opacity="0.7"/>
-  <rect x="108" y="36" width="6" height="6" rx="1" fill="#3b82f6" opacity="0.6"/>
-  <rect x="118" y="36" width="6" height="6" rx="1" fill="#60a5fa" opacity="0.5"/>
-  <rect x="128" y="36" width="6" height="6" rx="1" fill="#93c5fd" opacity="0.4"/>
+  <!-- Horizontal stripes fading to dots -->
+  <!-- Stripe 1 -->
+  <rect x="140" y="32" width="90" height="10" rx="2" fill="url(#stripe1)"/>
+  <rect x="235" y="32" width="10" height="10" rx="2" fill="#60a5fa" opacity="0.8"/>
+  <rect x="250" y="32" width="10" height="10" rx="2" fill="#93c5fd" opacity="0.6"/>
+  <rect x="265" y="32" width="10" height="10" rx="2" fill="#bfdbfe" opacity="0.4"/>
+  <rect x="280" y="32" width="10" height="10" rx="2" fill="#dbeafe" opacity="0.25"/>
 
-  <rect x="78" y="48" width="6" height="6" rx="1" fill="#172554" opacity="0.9"/>
-  <rect x="88" y="48" width="6" height="6" rx="1" fill="#1e3a8a" opacity="0.8"/>
-  <rect x="98" y="48" width="6" height="6" rx="1" fill="#1d4ed8" opacity="0.7"/>
-  <rect x="108" y="48" width="6" height="6" rx="1" fill="#2563eb" opacity="0.6"/>
-  <rect x="118" y="48" width="6" height="6" rx="1" fill="#3b82f6" opacity="0.5"/>
-  <rect x="128" y="48" width="6" height="6" rx="1" fill="#60a5fa" opacity="0.4"/>
-  <rect x="138" y="48" width="6" height="6" rx="1" fill="#93c5fd" opacity="0.3"/>
+  <!-- Stripe 2 -->
+  <rect x="140" y="48" width="90" height="10" rx="2" fill="url(#stripe2)"/>
+  <rect x="235" y="48" width="10" height="10" rx="2" fill="#3b82f6" opacity="0.8"/>
+  <rect x="250" y="48" width="10" height="10" rx="2" fill="#60a5fa" opacity="0.6"/>
+  <rect x="265" y="48" width="10" height="10" rx="2" fill="#93c5fd" opacity="0.4"/>
+  <rect x="280" y="48" width="10" height="10" rx="2" fill="#bfdbfe" opacity="0.25"/>
+  <rect x="295" y="48" width="10" height="10" rx="2" fill="#dbeafe" opacity="0.15"/>
+
+  <!-- Stripe 3 -->
+  <rect x="140" y="64" width="90" height="10" rx="2" fill="url(#stripe3)"/>
+  <rect x="235" y="64" width="10" height="10" rx="2" fill="#2563eb" opacity="0.8"/>
+  <rect x="250" y="64" width="10" height="10" rx="2" fill="#3b82f6" opacity="0.6"/>
+  <rect x="265" y="64" width="10" height="10" rx="2" fill="#60a5fa" opacity="0.4"/>
+  <rect x="280" y="64" width="10" height="10" rx="2" fill="#93c5fd" opacity="0.25"/>
+  <rect x="295" y="64" width="10" height="10" rx="2" fill="#bfdbfe" opacity="0.15"/>
+  <rect x="310" y="64" width="10" height="10" rx="2" fill="#dbeafe" opacity="0.1"/>
+
+  <!-- Stripe 4 -->
+  <rect x="140" y="80" width="90" height="10" rx="2" fill="url(#stripe4)"/>
+  <rect x="235" y="80" width="10" height="10" rx="2" fill="#1d4ed8" opacity="0.8"/>
+  <rect x="250" y="80" width="10" height="10" rx="2" fill="#2563eb" opacity="0.6"/>
+  <rect x="265" y="80" width="10" height="10" rx="2" fill="#3b82f6" opacity="0.4"/>
+  <rect x="280" y="80" width="10" height="10" rx="2" fill="#60a5fa" opacity="0.25"/>
+  <rect x="295" y="80" width="10" height="10" rx="2" fill="#93c5fd" opacity="0.15"/>
+  <rect x="310" y="80" width="10" height="10" rx="2" fill="#bfdbfe" opacity="0.1"/>
+  <rect x="325" y="80" width="10" height="10" rx="2" fill="#dbeafe" opacity="0.05"/>
+
+  <!-- Brand text -->
+  <text x="30" y="155" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="26" font-weight="700" fill="#0f172a" letter-spacing="-0.5">Adocs</text>
 </svg>

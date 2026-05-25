@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -187,6 +188,134 @@ func (h *Handler) ProxyHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Копируем тело
 	_, _ = io.Copy(w, resp.Body)
+}
+
+// MeHandler возвращает агрегированные данные аккаунта: баланс + подписка
+func (h *Handler) MeHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
+		return
+	}
+
+	billingAccountID, err := h.getBillingAccountID(r.Context())
+	if err != nil {
+		http.Error(w, fmt.Sprintf(`{"error":"%s"}`, err.Error()), http.StatusNotFound)
+		return
+	}
+
+	billingBase := *h.routes["billing"]
+	orgID := r.Context().Value(middleware.ContextKeyOrganizationID)
+
+	// Fetch balance
+	balanceURL := billingBase
+	balanceURL.Path = fmt.Sprintf("/accounts/%d/balance", billingAccountID)
+	balanceBody, balanceStatus, _ := h.callBilling(r.Context(), balanceURL.String(), orgID)
+
+	// Fetch subscription
+	subURL := billingBase
+	subURL.Path = fmt.Sprintf("/accounts/%d/subscriptions", billingAccountID)
+	subBody, subStatus, _ := h.callBilling(r.Context(), subURL.String(), orgID)
+
+	var balanceObj map[string]interface{}
+	if balanceStatus == http.StatusOK {
+		_ = json.Unmarshal(balanceBody, &balanceObj)
+	}
+
+	var subObj map[string]interface{}
+	if subStatus == http.StatusOK {
+		_ = json.Unmarshal(subBody, &subObj)
+	}
+
+	result := map[string]interface{}{
+		"balance":      balanceObj,
+		"subscription": subObj,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(w).Encode(result)
+}
+
+// EventsHandler возвращает историю биллинг-событий
+func (h *Handler) EventsHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
+		return
+	}
+
+	billingAccountID, err := h.getBillingAccountID(r.Context())
+	if err != nil {
+		http.Error(w, fmt.Sprintf(`{"error":"%s"}`, err.Error()), http.StatusNotFound)
+		return
+	}
+
+	billingBase := *h.routes["billing"]
+	billingBase.Path = fmt.Sprintf("/accounts/%d/events", billingAccountID)
+
+	orgID := r.Context().Value(middleware.ContextKeyOrganizationID)
+	body, statusCode, err := h.callBilling(r.Context(), billingBase.String(), orgID)
+	if err != nil {
+		http.Error(w, `{"error":"service unavailable"}`, http.StatusServiceUnavailable)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(statusCode)
+	_, _ = w.Write(body)
+}
+
+func (h *Handler) getBillingAccountID(ctx context.Context) (int64, error) {
+	if h.repo == nil {
+		return 0, fmt.Errorf("repository not configured")
+	}
+	orgID := ctx.Value(middleware.ContextKeyOrganizationID)
+	if orgID == nil {
+		return 0, fmt.Errorf("organization not authenticated")
+	}
+	id, ok := orgID.(int64)
+	if !ok {
+		if s, ok := orgID.(string); ok {
+			var err error
+			id, err = parseInt64(s)
+			if err != nil {
+				return 0, fmt.Errorf("invalid organization id")
+			}
+		} else {
+			return 0, fmt.Errorf("invalid organization id type")
+		}
+	}
+	org, err := h.repo.GetOrganization(ctx, id)
+	if err != nil {
+		return 0, fmt.Errorf("failed to get organization")
+	}
+	if org == nil {
+		return 0, fmt.Errorf("organization not found")
+	}
+	if org.BillingAccountID == nil || *org.BillingAccountID == 0 {
+		return 0, fmt.Errorf("billing account not configured")
+	}
+	return *org.BillingAccountID, nil
+}
+
+func (h *Handler) callBilling(ctx context.Context, urlStr string, orgID interface{}) ([]byte, int, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, urlStr, nil)
+	if err != nil {
+		return nil, 0, err
+	}
+	req.Header.Set("X-Service-Token", h.billingToken)
+	if orgID != nil {
+		req.Header.Set("X-Organization-ID", fmt.Sprintf("%v", orgID))
+	}
+	resp, err := h.client.Do(req)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, resp.StatusCode, err
+	}
+	return body, resp.StatusCode, nil
 }
 
 // resolveMePath заменяет /accounts/me/ на /accounts/{billing_account_id}/

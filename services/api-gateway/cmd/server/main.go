@@ -94,6 +94,20 @@ func main() {
 	// Webhooks (без auth, но с IP whitelist на уровне сервиса)
 	mux.HandleFunc("/webhooks/", webhookHandler.ProxyHandler)
 
+	// Aggregated endpoints (с auth и rate limit)
+	meHandler := authMiddleware.Handler(
+		rateLimitMiddleware.Handler(
+			http.HandlerFunc(gatewayHandler.MeHandler),
+		),
+	)
+	eventsHandler := authMiddleware.Handler(
+		rateLimitMiddleware.Handler(
+			http.HandlerFunc(gatewayHandler.EventsHandler),
+		),
+	)
+	mux.Handle("/v1/me", meHandler)
+	mux.Handle("/v1/events", eventsHandler)
+
 	// API endpoints (с auth и rate limit)
 	apiHandler := authMiddleware.Handler(
 		rateLimitMiddleware.Handler(
