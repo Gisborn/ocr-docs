@@ -7,8 +7,10 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"scan.passport.local/api/services/billing/internal/service"
+	"scan.passport.local/api/services/billing/pkg/models"
 )
 
 // Handler HTTP обработчики Billing Service
@@ -350,6 +352,31 @@ func (h *Handler) GetBillingEvents(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
+	}
+
+	// Filter by date range if provided
+	fromStr := r.URL.Query().Get("from")
+	toStr := r.URL.Query().Get("to")
+	if fromStr != "" || toStr != "" {
+		var fromDate, toDate time.Time
+		if fromStr != "" {
+			fromDate, _ = time.Parse("2006-01-02", fromStr)
+		}
+		if toStr != "" {
+			toDate, _ = time.Parse("2006-01-02", toStr)
+			toDate = toDate.Add(24*time.Hour - time.Second)
+		}
+		filtered := make([]*models.BillingEvent, 0, len(events))
+		for _, e := range events {
+			if !fromDate.IsZero() && e.CreatedAt.Before(fromDate) {
+				continue
+			}
+			if !toDate.IsZero() && e.CreatedAt.After(toDate) {
+				continue
+			}
+			filtered = append(filtered, e)
+		}
+		events = filtered
 	}
 
 	w.Header().Set("Content-Type", "application/json")

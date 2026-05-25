@@ -1183,7 +1183,7 @@ async function confirmTopup() {
 
 async function loadHistory() {
     try {
-        const res = await fetch(`${API_BASE}/api/v1/history`, { headers: { 'Authorization': 'Bearer ' + sessionToken } });
+        const res = await fetch(`${API_BASE}/api/v1/history?from=${from}&to=${to}`, { headers: { 'Authorization': 'Bearer ' + sessionToken } });
         if (!res.ok) throw new Error('err');
         const events = await res.json();
         const tbody = document.getElementById('historyTable');

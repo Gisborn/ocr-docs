@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"scan.passport.local/api/services/cabinet/internal/middleware"
 	"scan.passport.local/api/services/cabinet/internal/service"
@@ -546,6 +547,38 @@ func (h *Handler) GetHistory(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		http.Error(w, `{"error":"failed to get history"}`, http.StatusInternalServerError)
 		return
+	}
+
+	// Filter by date range if provided
+	fromStr := r.URL.Query().Get("from")
+	toStr := r.URL.Query().Get("to")
+	if fromStr != "" || toStr != "" {
+		filtered := make([]map[string]interface{}, 0, len(events))
+		for _, e := range events {
+			createdAt, ok := e["created_at"].(string)
+			if !ok {
+				continue
+			}
+			eventTime, err := time.Parse(time.RFC3339, createdAt)
+			if err != nil {
+				continue
+			}
+			if fromStr != "" {
+				fromDate, _ := time.Parse("2006-01-02", fromStr)
+				if eventTime.Before(fromDate) {
+					continue
+				}
+			}
+			if toStr != "" {
+				toDate, _ := time.Parse("2006-01-02", toStr)
+				toDate = toDate.Add(24*time.Hour - time.Second)
+				if eventTime.After(toDate) {
+					continue
+				}
+			}
+			filtered = append(filtered, e)
+		}
+		events = filtered
 	}
 
 	w.Header().Set("Content-Type", "application/json")
