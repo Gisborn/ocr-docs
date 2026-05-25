@@ -323,9 +323,9 @@ CREATE TABLE subscription_changes (
 | `ADMIN_TOKEN` | Все эндпоинты + POST /transactions/{id}/refund |
 | `CRON_TOKEN` | Внутренние эндпоинты для cron jobs |
 
-### Внутренние эндпоинты (для Cabinet, Orchestrator)
+### Внутренние эндпоинты (для Cabinet, Orchestrator, API Gateway)
 
-**Base URL:** `https://billing.api-scan.io/v1`
+**Billing Service не доступен напрямую извне.** Работает только внутри Docker-сети по адресу `http://billing:8080`. Внешние запросы маршрутизируются через API Gateway (`api.adocs.ru`) или Cabinet (`lk.adocs.ru`), которые проксируют вызовы во внутреннюю сеть.
 
 #### Счета
 
@@ -376,7 +376,7 @@ Content-Type: application/json
 {
   "amount_rub": 5000.00,
   "payment_method": "card",  -- или "invoice"
-  "return_url": "https://cabinet.api-scan.io/payment/success"
+  "return_url": "https://lk.adocs.ru/payment/success"
 }
 
 Response 201:
