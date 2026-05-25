@@ -9,7 +9,7 @@
 
 ## Обзор проекта
 
-**1C-Scan** — облачный API-сервис для распознавания паспортов граждан РФ, предназначенный для интеграции с системой 1С. Сервис позволяет B2B-клиентам автоматически извлекать структурированные данные из фотографий паспортов, исключая ручной ввод.
+**API-Scan** — облачный API-сервис для распознавания паспортов граждан РФ, предназначенный для интеграции с системой 1С. Сервис позволяет B2B-клиентам автоматически извлекать структурированные данные из фотографий паспортов, исключая ручной ввод.
 
 ### Миссия
 Исключить ручной ввод паспортных данных в B2B-секторе за счёт облачного OCR-распознавания и бесшовной интеграции с 1С.
@@ -160,13 +160,37 @@ JSON-ответ → Клиент
 - Маршрутизация по версиям API (`/v1/`, `/v2/`)
 
 #### Billing Service
-Двухфазная модель транзакций:
-1. **Резервирование (PENDING):** проверка баланса, блокировка суммы
-2. **Фиксация:**
-   - `COMMITTED` — успешное распознавание, списание средств
-   - `ROLLBACK` — техническая ошибка, возврат резерва
+Отдельный микросервис с собственной БД (`billing_db`). Управляет счетами, балансом, подписками и платежами.
 
-Приоритет списания: предоплаченные операции → рублёвый баланс.
+**Модель данных:**
+- `accounts` — счета клиентов (status: active / blocked / archived)
+- `balance_snapshots` + `billing_events` — Event Sourcing: снапшот + immutable события для пересчёта баланса
+- `reservations` — активные PENDING-резервы (автоочистка через 5 мин)
+- `tariffs` / `tariff_versions` / `tariff_service_prices` — тарифы с версионированием цен
+- `subscriptions` — подписки (status: active / grace_period / expired / pending_downgrade / upgraded / cancelled)
+- `payment_orders` — заказы на пополнение через ЮКассу
+
+**Двухфазная модель транзакций:**
+1. **Reserve** — блокировка средств с определением `charge_type`:
+   - `prepaid` — при активной подписке, если `available_prepaid >= included_price_rub`
+   - `pay_as_you_go` — без подписки или при недостатке prepaid (списание с рублёвого баланса)
+2. **Commit** — фиксация: резерв удаляется, создаётся `billing_event`
+3. **Rollback** — откат: резерв удаляется, средства возвращаются
+
+**Приоритет списания:** prepaid (included_price_rub) → рублёвый баланс (overage_price_rub).
+
+**Основные эндпоинты:**
+- `GET /tariffs` — список тарифов с ценами
+- `POST /accounts` — создание счёта
+- `GET /accounts/{id}/balance` — баланс (real + prepaid + активная подписка)
+- `GET /accounts/{id}/events?from=&to=` — история биллинг-событий с фильтром по датам
+- `POST /accounts/{id}/reserve` — резервирование
+- `POST /transactions/{id}/commit` / `/rollback` — фиксация / откат
+- `POST /accounts/{id}/topup` — пополнение баланса (внутренний)
+- `GET /accounts/{id}/subscriptions` — активная подписка
+- `POST /accounts/{id}/subscriptions` — покупка подписки
+- `POST /accounts/{id}/subscriptions/upgrade` — апгрейд подписки
+- `POST /payments` / `GET /payments/{id}` — создание и статус платежа
 
 #### Core Orchestrator
 - Последовательность: OCR → нормализация → ответ
@@ -414,8 +438,18 @@ file: <image_file>
 
 ## Полезные ссылки
 
-- Архитектура: `./api-scan-architecture.md`
-- План реализации: `./api-scan-plan.md`
+### Архитектура и планы
+- Общая архитектура: `docs/api-scan-architecture.md`
+- Архитектура биллинга: `docs/billing-architecture.md`
+- План реализации: `docs/api-scan-plan.md`
+
+### Описание сервисов
+- `services/api-gateway/README.md` — API Gateway (auth, rate limiting, routing)
+- `services/billing/README.md` — Billing Service (баланс, подписки, платежи)
+- `services/cabinet/README.md` — Cabinet Service (личный кабинет)
+- `services/orchestrator/README.md` — Core Orchestrator (OCR)
+
+### Внешняя документация
 - Документация Yandex Cloud: https://cloud.yandex.ru/docs
 - Документация Yandex Vision: https://cloud.yandex.ru/docs/vision
 - Документация ЮКасса: https://yookassa.ru/developers
