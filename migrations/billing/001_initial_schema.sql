@@ -226,7 +226,7 @@ INSERT INTO tariffs (id, code, name, description, is_active)
 VALUES (3, 'pro', 'Pro', 'Предоплаченный пакет операций', TRUE);
 
 INSERT INTO tariff_versions (tariff_id, valid_from, valid_until, duration_days, base_price_rub, prepaid_amount_rub)
-VALUES (3, '2024-01-01', NULL, 30, 20000.00, 6000.00);
+VALUES (3, '2024-01-01', NULL, 30, 20000.00, 20000.00);
 
 -- Цены для Basic (только overage)
 INSERT INTO tariff_service_prices (tariff_version_id, service_id, included_price_rub, overage_price_rub)
@@ -234,7 +234,7 @@ VALUES (2, 'passport_rf', 7.00, 7.00);
 
 -- Цены для Pro (included + overage)
 INSERT INTO tariff_service_prices (tariff_version_id, service_id, included_price_rub, overage_price_rub)
-VALUES (3, 'passport_rf', 1.00, 5.00);
+VALUES (3, 'passport_rf', 2.50, 3.00);
 
 -- +goose StatementEnd
 

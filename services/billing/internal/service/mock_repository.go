@@ -283,16 +283,16 @@ func (m *MockRepository) SeedTestData() {
 	m.tariffVersions[2] = &models.TariffVersion{
 		ID:              2,
 		TariffID:        2,
-		BasePriceRub:    990,
-		PrepaidAmountRub: 500,
+		BasePriceRub:    10000,
+		PrepaidAmountRub: 10000,
 		DurationDays:    30,
 	}
 
-	// Цена на распознавание паспорта для pro
+	// Цена на распознавание паспорта для pro (included slightly less than overage)
 	m.prices["2_passport_rf"] = &models.TariffServicePrice{
 		TariffVersionID:   2,
 		ServiceID:         "passport_rf",
-		IncludedPriceRub:  0,
-		OveragePriceRub:   5,
+		IncludedPriceRub:  2.50,
+		OveragePriceRub:   3.00,
 	}
 }

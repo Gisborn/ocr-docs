@@ -264,7 +264,7 @@ func TestHandler_CreateSubscription(t *testing.T) {
 	h, repo := setupTestHandler()
 
 	acc, _ := repo.CreateAccount(nil)
-	repo.SetBalance(acc.ID, 2000, 0)
+	repo.SetBalance(acc.ID, 15000, 0)
 
 	body, _ := json.Marshal(service.CreateSubscriptionRequest{
 		TariffCode:    "pro",
@@ -310,7 +310,7 @@ func TestHandler_GetAccountSubscription(t *testing.T) {
 	h, repo := setupTestHandler()
 
 	acc, _ := repo.CreateAccount(nil)
-	repo.SetBalance(acc.ID, 2000, 0)
+	repo.SetBalance(acc.ID, 15000, 0)
 
 	// Create subscription
 	body, _ := json.Marshal(service.CreateSubscriptionRequest{

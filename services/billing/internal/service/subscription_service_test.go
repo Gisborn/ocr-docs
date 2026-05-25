@@ -22,15 +22,15 @@ func TestCreateSubscription(t *testing.T) {
 		TariffID:         1,
 		ValidFrom:        time.Now().AddDate(-1, 0, 0),
 		DurationDays:     30,
-		BasePriceRub:     20000,
-		PrepaidAmountRub: 6000,
+		BasePriceRub:     10000,
+		PrepaidAmountRub: 10000,
 	}
 	
 	svc := NewSubscriptionService(repo)
 	
 	// Создаем аккаунт и пополняем баланс
 	acc, _ := repo.CreateAccount(context.Background())
-	repo.balances[acc.ID].RealBalanceRub = 25000
+	repo.balances[acc.ID].RealBalanceRub = 15000
 	
 	req := &CreateSubscriptionRequest{
 		TariffCode:    "pro",
@@ -51,25 +51,25 @@ func TestCreateSubscription(t *testing.T) {
 	// Проверяем что создано событие списания
 	foundPayment := false
 	for _, e := range repo.events {
-		if e.Type == "subscription_charge" && e.RealAmountRub == -20000 {
+		if e.Type == "subscription_charge" && e.RealAmountRub == -10000 {
 			foundPayment = true
 			break
 		}
 	}
 	if !foundPayment {
-		t.Error("Expected subscription_charge event with -20000")
+		t.Error("Expected subscription_charge event with -10000")
 	}
 
 	// Проверяем что создано событие начисления prepaid
 	foundPrepaid := false
 	for _, e := range repo.events {
-		if e.Type == "upgrade_bonus" && e.PrepaidAmountRub == 6000 {
+		if e.Type == "upgrade_bonus" && e.PrepaidAmountRub == 10000 {
 			foundPrepaid = true
 			break
 		}
 	}
 	if !foundPrepaid {
-		t.Error("Expected upgrade_bonus event with +6000 prepaid")
+		t.Error("Expected upgrade_bonus event with +10000 prepaid")
 	}
 
 	// Проверяем что создано ровно 2 события
@@ -91,8 +91,8 @@ func TestCreateSubscriptionInsufficientBalance(t *testing.T) {
 		TariffID:         1,
 		ValidFrom:        time.Now().AddDate(-1, 0, 0),
 		DurationDays:     30,
-		BasePriceRub:     20000,
-		PrepaidAmountRub: 6000,
+		BasePriceRub:     10000,
+		PrepaidAmountRub: 10000,
 	}
 	
 	svc := NewSubscriptionService(repo)
@@ -132,8 +132,8 @@ func TestUpgradeSubscription(t *testing.T) {
 		TariffID:         2,
 		ValidFrom:        time.Now().AddDate(-1, 0, 0),
 		DurationDays:     30,
-		BasePriceRub:     20000,
-		PrepaidAmountRub: 6000,
+		BasePriceRub:     10000,
+		PrepaidAmountRub: 10000,
 	}
 	
 	svc := NewSubscriptionService(repo)
@@ -252,15 +252,15 @@ func TestGetActiveSubscription(t *testing.T) {
 		TariffID:         1,
 		ValidFrom:        time.Now().AddDate(-1, 0, 0),
 		DurationDays:     30,
-		BasePriceRub:     20000,
-		PrepaidAmountRub: 6000,
+		BasePriceRub:     10000,
+		PrepaidAmountRub: 10000,
 	}
 
 	svc := NewSubscriptionService(repo)
 
 	// Создаем аккаунт и подписку
 	acc, _ := repo.CreateAccount(context.Background())
-	repo.balances[acc.ID].RealBalanceRub = 25000
+	repo.balances[acc.ID].RealBalanceRub = 15000
 
 	_, _ = svc.CreateSubscription(context.Background(), acc.ID, &CreateSubscriptionRequest{
 		TariffCode:    "pro",

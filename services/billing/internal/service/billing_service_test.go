@@ -203,13 +203,14 @@ func TestReserveWithPrepaidSubscription(t *testing.T) {
 
 	acc, _ := repo.CreateAccount(context.Background())
 	repo.balances[acc.ID].RealBalanceRub = 2000
+	repo.balances[acc.ID].PrepaidBalanceRub = 10000
 
 	// Создаем активную подписку pro
 	sub := &models.Subscription{
 		AccountID:       acc.ID,
 		TariffVersionID: 2,
 		Status:          "active",
-		InitialPrepaidRub: 500,
+		InitialPrepaidRub: 10000,
 	}
 	repo.CreateSubscription(context.Background(), sub)
 
