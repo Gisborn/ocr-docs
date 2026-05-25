@@ -112,9 +112,9 @@ jobs:
       - name: Start test environment
         run: |
           docker compose -f infra/docker/docker-compose.test.yml pull
-          docker compose -f infra/docker/docker-compose.test.yml up -d
+          docker compose -f infra/docker/docker-compose.test.yml up -d --pull always --force-recreate
           echo "Waiting for services..."
-          sleep 15
+          sleep 20
 
       - name: Run database migrations
         env:
