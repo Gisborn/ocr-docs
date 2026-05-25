@@ -874,13 +874,12 @@
                             <thead>
                                 <tr>
                                     <th>Дата</th>
-                                    <th>Услуга</th>
                                     <th>Кол-во операций</th>
                                     <th>Сумма (₽)</th>
                                 </tr>
                             </thead>
                             <tbody id="usageTable">
-                                <tr><td colspan="4" class="empty-state">Выберите период и нажмите «Показать»</td></tr>
+                                <tr><td colspan="3" class="empty-state">Выберите период и нажмите «Показать»</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -1451,7 +1450,7 @@ async function loadUsage() {
 
         usageData = chartData;
         renderUsageChart(chartData);
-        renderUsageTable(filtered.reverse()); // newest first
+        renderUsageTable(chartData.reverse()); // newest first
     } catch (e) {
         alert('Ошибка загрузки данных: ' + e.message);
         usageData = [];
@@ -1505,11 +1504,10 @@ function renderUsageChart(items) {
 
 function renderUsageTable(items) {
     const tbody = document.getElementById('usageTable');
-    if (!items.length) { tbody.innerHTML = '<tr><td colspan="4" class="empty-state">Нет данных за выбранный период</td></tr>'; return; }
+    if (!items.length) { tbody.innerHTML = '<tr><td colspan="3" class="empty-state">Нет данных за выбранный период</td></tr>'; return; }
     tbody.innerHTML = items.map(i => `
         <tr>
             <td>${new Date(i.date).toLocaleDateString('ru-RU')}</td>
-            <td>${escapeHtml(i.service)}</td>
             <td>${i.operations}</td>
             <td>${i.amount} ₽</td>
         </tr>
@@ -1520,7 +1518,6 @@ function exportXLSX() {
     if (!usageData.length) return alert('Нет данных для выгрузки');
     const rows = usageData.map(i => ({
         'Дата': i.date,
-        'Услуга': i.service,
         'Операции': i.operations,
         'Сумма (₽)': parseFloat(i.amount)
     }));
