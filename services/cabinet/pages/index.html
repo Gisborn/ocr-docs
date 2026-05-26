@@ -712,7 +712,7 @@
             <h2 id="pageTitle">Обзор</h2>
             <div style="display:flex;align-items:center;gap:12px">
                 <span id="headerBalance" style="font-size:14px;color:var(--text-secondary)">Баланс: 0 ₽</span>
-                <span id="headerPkg" style="font-size:14px;color:var(--text-secondary)">Пакет: 0 оп.</span>
+                <span id="headerPkg" style="font-size:14px;color:var(--text-secondary)">Предоплата: 0 ₽</span>
             </div>
         </header>
 
@@ -729,9 +729,9 @@
                         </div>
                     </div>
                     <div class="stat-card">
-                        <div class="stat-label">Остаток пакета</div>
-                        <div class="stat-value success" id="dashPkg">0 оп.</div>
-                        <div class="stat-delta">Предоплаченных операций</div>
+                        <div class="stat-label">Предоплаченный баланс</div>
+                        <div class="stat-value success" id="dashPkg">0 ₽</div>
+                        <div class="stat-delta" id="dashPkgSubtext">Без подписки</div>
                         <div class="stat-action">
                             <button class="btn btn-outline" onclick="navigate('billing')">Управление пакетом</button>
                         </div>
@@ -787,8 +787,8 @@
                         <div class="stat-value primary" id="billBalance">0 ₽</div>
                     </div>
                     <div class="stat-card">
-                        <div class="stat-label">Остаток пакета</div>
-                        <div class="stat-value success" id="billPkg">0 оп.</div>
+                        <div class="stat-label">Предоплаченный баланс</div>
+                        <div class="stat-value success" id="billPkg">0 ₽</div>
                     </div>
                 </div>
 
@@ -866,7 +866,7 @@
                     <div class="card-header">
                         <div>
                             <div class="card-title">Детализация по дням</div>
-                            <div class="card-subtitle">Расходы и количество операций</div>
+                            <div class="card-subtitle">Расходы и количество распознаваний</div>
                         </div>
                     </div>
                     <div class="table-wrap">
@@ -875,7 +875,7 @@
                                 <tr>
                                     <th>Дата</th>
                                     <th>Услуга</th>
-                                    <th>Кол-во операций</th>
+                                    <th>Кол-во</th>
                                     <th>Сумма (₽)</th>
                                 </tr>
                             </thead>
@@ -1136,14 +1136,24 @@ async function loadBalance() {
         const res = await fetch(`${API_BASE}/api/v1/balance`, { headers: { 'Authorization': 'Bearer ' + sessionToken } });
         if (!res.ok) throw new Error('err');
         const data = await res.json();
-        const rub = (data.real_balance_rub || 0) + ' ₽';
-        const pkg = (data.prepaid_balance_rub || 0) + ' оп.';
+        const rub = (data.real_balance_rub || 0).toFixed(2) + ' ₽';
+        const pkg = (data.prepaid_balance_rub || 0).toFixed(2) + ' ₽';
         document.getElementById('dashBalance').textContent = rub;
         document.getElementById('dashPkg').textContent = pkg;
         document.getElementById('billBalance').textContent = rub;
         document.getElementById('billPkg').textContent = pkg;
         document.getElementById('headerBalance').textContent = 'Баланс: ' + rub;
-        document.getElementById('headerPkg').textContent = 'Пакет: ' + pkg;
+        document.getElementById('headerPkg').textContent = 'Предоплата: ' + pkg;
+
+        // Show subscription expiry date in prepaid widget
+        const sub = data.active_subscription;
+        const subText = document.getElementById('dashPkgSubtext');
+        if (sub && sub.expires_at) {
+            const exp = new Date(sub.expires_at);
+            subText.textContent = 'До ' + exp.toLocaleDateString('ru-RU');
+        } else {
+            subText.textContent = 'Без подписки';
+        }
     } catch (e) {
         document.getElementById('dashBalance').textContent = '?';
         document.getElementById('dashPkg').textContent = '?';
@@ -1279,7 +1289,7 @@ let tariffs = [];
 const TARIFF_FEATURES = {
     free:  ['10 распознаваний в месяц', 'Email-поддержка', 'Базовая точность'],
     basic: ['Безлимитные распознавания', 'Приоритетная обработка', 'Стандартная поддержка'],
-    pro:   ['5 000 операций в пакете', 'Перерасход по Basic-цене', 'Приоритетная поддержка', 'API v2 (async)']
+    pro:   ['10 000 ₽ в пакете', 'Перерасход по Basic-цене', 'Приоритетная поддержка', 'API v2 (async)']
 };
 
 async function loadTariffs() {
@@ -1416,7 +1426,8 @@ async function loadDashboardStats() {
         const currentYear = now.getFullYear();
         const count = events.filter(e => {
             const d = new Date(e.created_at);
-            return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+            return d.getMonth() === currentMonth && d.getFullYear() === currentYear &&
+                   (e.type === 'prepaid_usage' || e.type === 'pay_as_you_go');
         }).length;
         document.getElementById('dashUsage').textContent = count;
     } catch (e) { console.error(e); }
@@ -1499,38 +1510,67 @@ function renderUsageChart(items) {
     const ctx = document.getElementById('usageChart').getContext('2d');
     if (usageChart) usageChart.destroy();
     // items may contain multiple services per day; aggregate to daily totals
-    const daily = {};
+    const dailyAmount = {};
+    const dailyOps = {};
     items.forEach(i => {
-        if (!daily[i.date]) daily[i.date] = 0;
-        daily[i.date] += parseFloat(i.amount);
+        if (!dailyAmount[i.date]) { dailyAmount[i.date] = 0; dailyOps[i.date] = 0; }
+        dailyAmount[i.date] += parseFloat(i.amount);
+        dailyOps[i.date] += i.operations;
     });
-    const sortedDates = Object.keys(daily).sort();
+    const sortedDates = Object.keys(dailyAmount).sort();
     const labels = sortedDates.map(d => d.split('-').slice(1).reverse().join('.'));
-    const values = sortedDates.map(d => daily[d]);
+    const amountValues = sortedDates.map(d => dailyAmount[d]);
+    const opsValues = sortedDates.map(d => dailyOps[d]);
     const gridColor = getCssVar('--chart-grid');
     const textColor = getCssVar('--chart-text');
     const primaryColor = getCssVar('--primary');
+    const successColor = getCssVar('--success');
     usageChart = new Chart(ctx, {
         type: 'bar',
         data: {
             labels,
-            datasets: [{
-                label: 'Расход (₽)',
-                data: values,
-                backgroundColor: primaryColor,
-                borderRadius: 6,
-                barThickness: 20
-            }]
+            datasets: [
+                {
+                    label: 'Расход (₽)',
+                    data: amountValues,
+                    backgroundColor: primaryColor,
+                    borderRadius: 6,
+                    barThickness: 20,
+                    yAxisID: 'y'
+                },
+                {
+                    label: 'Кол-во распознаваний',
+                    data: opsValues,
+                    type: 'line',
+                    borderColor: successColor,
+                    backgroundColor: successColor,
+                    borderWidth: 2,
+                    tension: 0.3,
+                    pointRadius: 3,
+                    fill: false,
+                    yAxisID: 'y1'
+                }
+            ]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            plugins: { legend: { display: false } },
+            plugins: {
+                legend: { display: true, labels: { color: textColor } }
+            },
             scales: {
                 y: {
                     beginAtZero: true,
                     grid: { color: gridColor },
-                    ticks: { color: textColor, callback: v => v + ' ₽' }
+                    ticks: { color: textColor, callback: v => v + ' ₽' },
+                    title: { display: true, text: 'Сумма (₽)', color: textColor }
+                },
+                y1: {
+                    beginAtZero: true,
+                    position: 'right',
+                    grid: { display: false },
+                    ticks: { color: textColor },
+                    title: { display: true, text: 'Кол-во', color: textColor }
                 },
                 x: {
                     grid: { display: false },
