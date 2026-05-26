@@ -1445,15 +1445,15 @@ async function loadUsage() {
 
         const serviceNames = { passport_rf: 'OCR Паспорт' };
 
-        // Filter and transform events
+        // Filter and transform events — only recognition operations
         const filtered = events.filter(e => {
             const d = new Date(e.created_at);
-            return d >= fromDate && d <= toDate;
+            return d >= fromDate && d <= toDate && (e.type === 'prepaid_usage' || e.type === 'pay_as_you_go');
         }).map(e => ({
             date: e.created_at.split('T')[0],
-            service: serviceNames[e.service_id] || (e.type === 'balance_topup' ? 'Пополнение баланса' : e.service_id || e.type),
+            service: serviceNames[e.service_id] || e.service_id || e.type,
             operations: 1,
-            amount: Math.abs(e.real_amount_rub).toFixed(2)
+            amount: (Math.abs(e.real_amount_rub || 0) + Math.abs(e.prepaid_amount_rub || 0)).toFixed(2)
         }));
 
         // Aggregate by day + service for table
